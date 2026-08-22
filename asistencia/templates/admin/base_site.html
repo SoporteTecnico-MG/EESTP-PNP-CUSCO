@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    body { font-size: 15px; }
+    #content, .module { font-size: 15px; }
+    input, select, textarea { font-size: 15px !important; padding: 6px !important; }
+    .form-row { padding: 10px 0 !important; }
+    table.form-row td, table.form-row th { padding: 8px 10px !important; }
+    .inline-group table input, .inline-group table select { min-width: 140px; }
+    .inline-group .tabular td, .inline-group .tabular th { padding: 8px !important; }
+    select.admin-autocomplete { min-width: 320px !important; font-size: 15px !important; }
+    .select2-container { min-width: 320px !important; }
+    .select2-selection { min-height: 34px !important; font-size: 15px !important; }
+    .select2-results__option { font-size: 14px !important; padding: 6px 8px !important; }
+    div.breadcrumbs { font-size: 13px; }
+    h1, h2, h2 a { font-size: 1.3em; }
+
+    /* Grilla de horario */
+    .schedule-wrap { border: 1px solid #d7dde3; border-radius: .5rem; overflow: auto; max-height: 78vh; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-top: 1rem; }
+    table.horario { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; background: #fff; }
+    table.horario td, table.horario th { vertical-align: middle; text-align: center; font-size: .78rem; border-bottom: 1px solid #e9ecef; border-right: 1px solid #e9ecef; padding: .35rem; }
+    table.horario thead th { position: sticky; top: 0; z-index: 2; background: #1d5a43; color: #fff; text-transform: uppercase; font-size: .72rem; letter-spacing: .04em; padding: .55rem .35rem; }
+    table.horario tbody th { background: #f4f8f6; font-weight: 700; white-space: nowrap; color: #1d5a43; }
+    .celda-receso { background: #fff7de; font-weight: 600; color: #8a6d1a; letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
+    .celda-curso { border-radius: .35rem; padding: .3rem; }
+    .celda-curso .curso-nombre { font-weight: 700; font-size: .74rem; line-height: 1.1; color: #1c2b24; }
+    .celda-curso .docente-nombre { font-size: .68rem; color: #2f4a3f; margin-top: .1rem; }
+    .celda-curso .docente-celular { font-size: .64rem; color: #5c6b64; }
+    .celda-libre { background: #fbfcfb; }
+    .celda-libre details summary { list-style: none; color: #9aa5a0; font-size: .72rem; cursor: pointer; }
+    .celda-libre details summary::-webkit-details-marker { display: none; }
+    .celda-libre details[open] summary { color: #1d5a43; font-weight: 600; }
+    .celda-libre:hover { background: #eef6f1; }
+    .filtros-horario select { font-size: .85rem !important; padding: 5px 8px !important; }
+    .filtros-horario { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin: .75rem 0 1rem; }
+    .aviso-ok { background: #dff3e7; border: 1px solid #79b891; color: #174c38; padding: .5rem .8rem; border-radius: .35rem; margin-bottom: .75rem; }
+    .aviso-error { background: #fde2e2; border: 1px solid #e08a8a; color: #7a1f1f; padding: .5rem .8rem; border-radius: .35rem; margin-bottom: .75rem; }
+
+    .celda-curso select, .celda-libre select, .celda-curso input, .celda-libre input { font-size: .78rem !important; padding: 3px 4px !important; width: 100%; margin-bottom: .2rem; }
+    .btn-mini { display: inline-block; font-size: .72rem; padding: .15rem .5rem; border-radius: .25rem; border: none; cursor: pointer; text-decoration: none; }
+    .btn-mini-primary { background: #1d5a43; color: #fff; width: 100%; margin-top: .15rem; }
+    .btn-mini-danger { background: #c94f4f; color: #fff; }
+
+    .pagina-centrada { max-width: 1150px; margin: 0 auto; }
+</style>
+{% endblock %}

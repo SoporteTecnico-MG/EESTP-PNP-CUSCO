@@ -1,0 +1,23 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.5rem">
+    <div style="flex:1;min-width:280px;background:#1d5a43;color:#fff;border-radius:.5rem;padding:1.25rem;">
+        <div style="font-size:1.15rem;font-weight:700;margin-bottom:.3rem">📋 Control Docentes</div>
+        <div style="opacity:.85;font-size:.85rem;margin-bottom:1rem">
+            Asistencia biométrica, horarios, docentes, promociones y períodos.
+        </div>
+        <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+            <a href="{% url 'admin:armar_horario' %}" style="background:#fff;color:#1d5a43;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Armar Horario</a>
+            <a href="{% url 'admin:ver_horario' %}" style="background:#fff;color:#1d5a43;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Ver Horario</a>
+        </div>
+    </div>
+    <div style="flex:1;min-width:280px;background:#e9ecef;color:#495057;border-radius:.5rem;padding:1.25rem;position:relative">
+        <span style="position:absolute;top:.75rem;right:.75rem;background:#adb5bd;color:#fff;font-size:.68rem;padding:.15rem .5rem;border-radius:1rem;text-transform:uppercase;letter-spacing:.03em">Próximamente</span>
+        <div style="font-size:1.15rem;font-weight:700;margin-bottom:.3rem">🎓 Aula Virtual</div>
+        <div style="font-size:.85rem">
+            Roles (admin, docentes, estudiantes), materiales de clase y asistencia por inicio de sesión. Todavía no está construida — se planificará como una fase aparte.
+        </div>
+    </div>
+</div>
+{{ block.super }}
+{% endblock %}

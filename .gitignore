@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.env
+db.sqlite3
+staticfiles/
+media/
+*.log
+
+# Datos reales de docentes (DNI, nombres, etc.) - informacion personal, no va a git
+*.xlsx
+*.xls
+
+# Archivos de sesion de Claude Code, no forman parte del proyecto
+.claude/

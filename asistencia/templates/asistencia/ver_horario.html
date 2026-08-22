@@ -1,0 +1,73 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Ver Horario{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Ver Horario
+</div>
+{% endblock %}
+{% block content %}
+<div class="pagina-centrada">
+<h1>Ver Horario</h1>
+
+<form method="get" class="filtros-horario">
+    <select name="promocion" onchange="this.form.submit()">
+        <option value="">-- Elige promoción --</option>
+        {% for p in promociones %}
+        <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% if promocion %}
+    <select name="aula" onchange="this.form.submit()">
+        <option value="">-- Elige aula --</option>
+        {% for a in aulas %}
+        <option value="{{ a.id }}" {% if aula.id == a.id %}selected{% endif %}>
+            {{ a.codigo }}{% if a.especialidad %} — {{ a.especialidad.nombre }}{% endif %}
+        </option>
+        {% endfor %}
+    </select>
+    {% endif %}
+</form>
+
+{% if aula %}
+<h2>{{ aula.codigo }} — {{ promocion.nombre }}{% if aula.especialidad %} · {{ aula.especialidad.nombre }}{% endif %}</h2>
+<div class="schedule-wrap">
+<table class="horario">
+    <thead>
+        <tr>
+            <th>Hora</th>
+            {% for num, nombre in dias %}<th>{{ nombre }}</th>{% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for fila in grilla %}
+        <tr>
+            <th>{{ fila.hora.hora_inicio|time:"H:i" }}–{{ fila.hora.hora_fin|time:"H:i" }}</th>
+            {% if fila.es_receso %}
+            <td colspan="{{ dias|length }}" class="celda-receso">{{ fila.hora.get_tipo_display }}</td>
+            {% else %}
+                {% for celda in fila.celdas %}
+                    {% if celda.tipo == "inicio" %}
+                    <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
+                        <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
+                        <div class="docente-nombre">{{ celda.asignacion.docente.apellidos_nombres }}</div>
+                        {% if celda.asignacion.docente.celular %}
+                        <div class="docente-celular">{{ celda.asignacion.docente.celular }}</div>
+                        {% endif %}
+                    </td>
+                    {% elif celda.tipo == "libre_lectura" %}
+                    <td class="celda-libre" style="color:#999">Estudio personalizado</td>
+                    {% endif %}
+                    {# celdas "ocupada" no se dibujan: quedan cubiertas por el rowspan de arriba #}
+                {% endfor %}
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<p style="color:#666">Elige promoción y aula para ver su horario.</p>
+{% endif %}
+</div>
+{% endblock %}
