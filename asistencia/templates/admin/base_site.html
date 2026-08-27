@@ -8,25 +8,47 @@
     .form-row { padding: 10px 0 !important; }
     table.form-row td, table.form-row th { padding: 8px 10px !important; }
     .inline-group table input, .inline-group table select { min-width: 140px; }
-    .inline-group .tabular td, .inline-group .tabular th { padding: 8px !important; }
+    .inline-group .tabular td, .inline-group .tabular th { padding: 8px !important; position: relative; }
     select.admin-autocomplete { min-width: 320px !important; font-size: 15px !important; }
-    .select2-container { min-width: 320px !important; }
+    .select2-container { min-width: 320px !important; max-width: 100%; }
     .select2-selection { min-height: 34px !important; font-size: 15px !important; }
     .select2-results__option { font-size: 14px !important; padding: 6px 8px !important; }
+    /* Las Asignaciones (Promoción/Período/Aula/Oferta Curso) van en formato
+       apilado: cada campo en su propia línea. Sin ancho máximo — el select
+       se dimensiona solo, a su contenido real, sin recortar texto. */
+    .inline-group select:not(.admin-autocomplete) {
+        color: #22302b !important;
+        background: #fff !important;
+    }
     div.breadcrumbs { font-size: 13px; }
     h1, h2, h2 a { font-size: 1.3em; }
 
     /* Grilla de horario */
-    .schedule-wrap { border: 1px solid #d7dde3; border-radius: .5rem; overflow: auto; max-height: 78vh; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-top: 1rem; }
+    .schedule-wrap { border: 1px solid #d7dde3; border-radius: .5rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-top: 1rem; }
     table.horario { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 760px; background: #fff; }
     table.horario td, table.horario th { vertical-align: middle; text-align: center; font-size: .78rem; border-bottom: 1px solid #e9ecef; border-right: 1px solid #e9ecef; padding: .35rem; }
     table.horario thead th { position: sticky; top: 0; z-index: 2; background: #1d5a43; color: #fff; text-transform: uppercase; font-size: .72rem; letter-spacing: .04em; padding: .55rem .35rem; }
     table.horario tbody th { background: #f4f8f6; font-weight: 700; white-space: nowrap; color: #1d5a43; }
     .celda-receso { background: #fff7de; font-weight: 600; color: #8a6d1a; letter-spacing: .03em; text-transform: uppercase; font-size: .72rem; }
-    .celda-curso { border-radius: .35rem; padding: .3rem; }
-    .celda-curso .curso-nombre { font-weight: 700; font-size: .74rem; line-height: 1.1; color: #1c2b24; }
-    .celda-curso .docente-nombre { font-size: .68rem; color: #2f4a3f; margin-top: .1rem; }
-    .celda-curso .docente-celular { font-size: .64rem; color: #5c6b64; }
+    .celda-curso { border-radius: .35rem; padding: .5rem .55rem; text-align: left; }
+    .celda-curso .curso-nombre {
+        font-weight: 900; font-size: 1.15rem; line-height: 1.2; color: #16221d;
+        text-transform: uppercase; letter-spacing: .01em; margin-bottom: .45rem;
+        padding-bottom: .3rem; border-bottom: 2px solid rgba(22,34,29,.25);
+    }
+    .docente-info {
+        background: rgba(255,255,255,.4);
+        border-radius: .3rem;
+        padding: .25rem .45rem;
+        margin-top: .25rem;
+    }
+    .docente-info .docente-grado-nombre { font-size: .74rem; font-weight: 500; color: #3c4a44; line-height: 1.2; }
+    .docente-info .docente-celular { font-size: .68rem; font-weight: 400; color: #5c6b64; margin-top: .05rem; }
+    .docente-info .docente-celular::before { content: "📱 "; }
+    /* compat con celdas de solo-lectura antiguas */
+    .celda-curso .docente-nombre { font-size: .74rem; font-weight: 500; color: #3c4a44; margin-top: .1rem; }
+    .celda-curso .docente-celular { font-size: .68rem; font-weight: 400; color: #5c6b64; }
+    .celda-curso .docente-celular::before { content: "📱 "; }
     .celda-libre { background: #fbfcfb; }
     .celda-libre details summary { list-style: none; color: #9aa5a0; font-size: .72rem; cursor: pointer; }
     .celda-libre details summary::-webkit-details-marker { display: none; }
@@ -43,5 +65,199 @@
     .btn-mini-danger { background: #c94f4f; color: #fff; }
 
     .pagina-centrada { max-width: 1150px; margin: 0 auto; }
+
+    /* ================================================================
+       REDISEÑO INSTITUCIONAL COMPLETO (EESTP PNP CUSCO — verde + dorado)
+       Se sobreescriben las variables que usa Django admin en TODAS sus
+       pantallas (listas, formularios, filtros, migas de pan, botones),
+       en vez de parchear selector por selector. Así queda un solo
+       lugar que gobierna el color de toda la aplicación.
+       ================================================================ */
+    html[data-theme="light"], :root {
+        color-scheme: light;
+        --primary: #16543f;
+        --secondary: #0d3b2e;
+        --accent: #c9a227;
+        --primary-fg: #fff;
+
+        --body-bg: #f7f5ef;
+        --body-fg: #22302b;
+        --body-quiet-color: #5c6b64;
+        --body-medium-color: #3c4a44;
+        --body-loud-color: #16221d;
+
+        --header-color: #f3e6b8;
+        --header-branding-color: var(--accent);
+        --header-bg: linear-gradient(135deg, var(--secondary), var(--primary));
+        --header-link-color: #fff;
+
+        --breadcrumbs-fg: #cfe0d6;
+        --breadcrumbs-link-fg: #fff;
+        --breadcrumbs-bg: var(--secondary);
+
+        --link-fg: var(--primary);
+        --link-hover-color: var(--secondary);
+        --link-selected-fg: var(--secondary);
+
+        --hairline-color: #e3ddc9;
+        --border-color: #d7d2bf;
+
+        --darkened-bg: #efece1;
+        --selected-bg: #f3ecd4;
+        --selected-row: #fbf3d9;
+
+        --button-fg: #fff;
+        --button-bg: var(--primary);
+        --button-hover-bg: var(--secondary);
+        --default-button-bg: var(--accent);
+        --default-button-hover-bg: #b8931f;
+        --close-button-bg: #7a8a82;
+        --close-button-hover-bg: #5c6b64;
+
+        --object-tools-fg: var(--secondary);
+        --object-tools-bg: var(--accent);
+        --object-tools-hover-bg: #b8931f;
+    }
+
+    #header { border-bottom: 3px solid var(--accent); }
+    #branding h1 { font-weight: 700; font-size: 1.05rem; letter-spacing: .02em; }
+
+    #nav-sidebar {
+        background: var(--secondary) !important;
+        border-right: 3px solid var(--accent);
+        padding: .75rem 0;
+    }
+    #nav-sidebar #nav-filter {
+        background: rgba(255,255,255,.1) !important;
+        color: #fff !important;
+        border: 1px solid rgba(255,255,255,.3) !important;
+        border-radius: .4rem;
+        margin: 0 1rem .75rem;
+    }
+    #nav-sidebar .module { margin: 0 .6rem .9rem; border-radius: .4rem; overflow: hidden; }
+    #nav-sidebar .module caption {
+        background: rgba(255,255,255,.06) !important;
+        padding: .3rem 0;
+    }
+    #nav-sidebar .module caption a.section {
+        color: var(--accent) !important;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: .72rem;
+        letter-spacing: .06em;
+    }
+    #nav-sidebar tr { border-bottom: 1px solid rgba(255,255,255,.06); transition: background .12s; }
+    #nav-sidebar tr:hover { background: rgba(255,255,255,.06); }
+    #nav-sidebar th, #nav-sidebar td { padding: 0 !important; }
+    #nav-sidebar th a, #nav-sidebar td a {
+        color: #fdfdfb !important;
+        font-weight: 500;
+        display: block;
+        padding: .45rem .9rem !important;
+    }
+    #nav-sidebar th a:hover, #nav-sidebar td a:hover { color: var(--accent) !important; }
+    #nav-sidebar .addlink { color: rgba(255,255,255,.55) !important; font-size: .78rem !important; }
+    #nav-sidebar .current-model { background: rgba(201,162,39,.18); border-left: 3px solid var(--accent); }
+    #nav-sidebar .current-model th a { color: var(--accent) !important; font-weight: 700; }
+
+    .module h2, .module caption, .inline-group h2 { background: var(--primary) !important; color: #fff !important; }
+
+    /* Tarjetas con sombra en vez de cajas planas */
+    .module, #changelist-filter, #changelist table, .paginator, .inline-group {
+        border-radius: .5rem !important;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(13,59,46,.08);
+        border: 1px solid var(--hairline-color) !important;
+    }
+    #changelist-filter { padding-bottom: .5rem; }
+    #changelist-filter h2 { border-radius: .5rem .5rem 0 0; }
+    #changelist-filter h3 { color: var(--secondary); font-weight: 700; }
+    #changelist-filter li.selected a { color: var(--accent); font-weight: 700; }
+    #changelist table thead th { background: var(--darkened-bg) !important; }
+    #changelist table tbody tr:hover { background: var(--selected-bg) !important; }
+    #content { padding: 1.25rem 1.5rem; }
+    #content-main { padding-right: .5rem; }
+    .dashboard #content { padding-top: 1.5rem; }
+
+    /* Mismo esquema si el sistema está en modo oscuro (si no, Django lo pisa con su propia paleta). */
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]), :root:not([data-theme="light"]) {
+            color-scheme: light;
+            --primary: #16543f;
+            --secondary: #0d3b2e;
+            --accent: #c9a227;
+            --primary-fg: #fff;
+            --body-bg: #f7f5ef;
+            --body-fg: #22302b;
+            --darkened-bg: #efece1;
+            --selected-bg: #f3ecd4;
+            --selected-row: #fbf3d9;
+            --link-fg: var(--primary);
+            --border-color: #d7d2bf;
+            --hairline-color: #e3ddc9;
+        }
+    }
+    html[data-theme="dark"], :root[data-theme="dark"] {
+        color-scheme: light;
+        --primary: #16543f;
+        --secondary: #0d3b2e;
+        --accent: #c9a227;
+        --body-bg: #f7f5ef;
+        --body-fg: #22302b;
+        --darkened-bg: #efece1;
+        --selected-row: #fbf3d9;
+    }
+
+    /* Impresión / exportar a PDF del horario: hoja horizontal, solo la tabla. */
+    .solo-imprimir { display: none; }
+    .titulo-impresion { text-align: center; margin-bottom: .75rem; }
+    .titulo-impresion h1 { font-size: 1.4rem; margin: 0; color: var(--secondary); letter-spacing: .03em; }
+    .titulo-impresion h2 { font-size: 1.05rem; margin: .2rem 0 0; color: var(--primary); font-weight: 700; }
+    .titulo-impresion h3 { font-size: .85rem; margin: .15rem 0 0; color: #555; font-weight: 500; }
+
+    @media print {
+        @page { size: landscape; margin: .6cm; }
+        html, body { height: auto !important; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        #header, #nav-sidebar, .breadcrumbs, #toggle-nav-sidebar, .no-imprimir { display: none !important; }
+        #content { padding: 0 !important; margin: 0 !important; }
+        .main > #nav-sidebar + .content, .main.shifted > #nav-sidebar + .content { margin-left: 0 !important; }
+        body { background: #fff !important; }
+        .solo-imprimir { display: block !important; }
+        .titulo-impresion { margin-bottom: .3rem !important; }
+        .titulo-impresion h1 { font-size: 1.05rem !important; }
+        .titulo-impresion h2 { font-size: .85rem !important; }
+        .titulo-impresion h3 { font-size: .68rem !important; }
+        .pagina-centrada { max-width: none !important; }
+        .schedule-wrap { max-height: none !important; overflow: visible !important; box-shadow: none !important; border-color: #999 !important; margin-top: 0 !important; }
+        html, body, #content, .pagina-centrada { min-height: 0 !important; }
+
+        /* Grillas de horario (Armar/Ver Horario) — no aplica al reporte, tiene su propio bloque abajo. */
+        table.horario:not(.tabla-reporte) { min-width: 0 !important; width: 100% !important; table-layout: fixed !important; font-size: 7.5px !important; page-break-inside: avoid !important; }
+        table.horario:not(.tabla-reporte) th:first-child, table.horario:not(.tabla-reporte) td:first-child { width: 9%; }
+        table.horario:not(.tabla-reporte) thead th { position: static !important; padding: .12rem !important; }
+        table.horario:not(.tabla-reporte) td, table.horario:not(.tabla-reporte) th { padding: .1rem .18rem !important; line-height: 1.05 !important; }
+        .celda-curso { padding: .12rem .18rem !important; }
+        .curso-nombre { font-size: .72rem !important; margin-bottom: .12rem !important; padding-bottom: .1rem !important; border-bottom-width: 1px !important; }
+        .docente-info { padding: .1rem .2rem !important; margin-top: .1rem !important; }
+        .docente-grado-nombre, .docente-nombre { font-size: .62rem !important; }
+        .docente-celular { font-size: .56rem !important; }
+        .celda-receso { font-size: .58rem !important; }
+
+        /* Reporte de Asistencia — tabla propia, se deja fluir en vez de
+           table-layout:fixed (columnas de contenido muy distinto entre sí),
+           evita que una fila mal calculada empuje una página en blanco. */
+        table.tabla-reporte { width: 100% !important; font-size: 8px !important; page-break-inside: auto !important; }
+        table.tabla-reporte td, table.tabla-reporte th { padding: .12rem .25rem !important; line-height: 1.15 !important; }
+        table.tabla-reporte tr { page-break-inside: avoid !important; }
+        .corregir-inline { display: none !important; }
+    }
+
+    /* Tarjetas de estadística reutilizables (dashboard, reportes, etc.) */
+    .ed-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:.9rem; margin-bottom:1.25rem; }
+    .ed-stat { background:#fff; border-radius:.6rem; padding:1rem 1.1rem; box-shadow:0 1px 3px rgba(0,0,0,.06); border-left:4px solid var(--primary); }
+    .ed-stat.alerta { border-left-color: var(--accent); }
+    .ed-stat .num { font-size:1.7rem; font-weight:800; color:var(--secondary); line-height:1; }
+    .ed-stat .lbl { font-size:.76rem; color:#6b7a72; margin-top:.35rem; text-transform:uppercase; letter-spacing:.03em; }
 </style>
 {% endblock %}

@@ -111,6 +111,11 @@ class PeriodoAcademico(models.Model):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
     estado = models.CharField(max_length=15, choices=Estado.choices, default=Estado.PLANIFICADO)
+    usa_sabado = models.BooleanField(
+        default=True,
+        help_text="Si este período dicta clases los sábados. Al desactivarlo, el "
+        "sábado deja de aparecer en el horario y no se puede programar cursos ese día.",
+    )
 
     class Meta:
         verbose_name = "Período Académico"
@@ -284,6 +289,7 @@ class AsistenciaResuelta(models.Model):
         SOLO_SALIDA = "SOLO_SALIDA", "Solo marcó salida"
         NO_PROGRAMADO = "NO_PROGRAMADO", "No programado"
         AMBIGUO = "AMBIGUO", "Ambiguo (revisar)"
+        RECUPERACION = "RECUPERACION", "Recuperación nocturna"
 
     docente = models.ForeignKey(Docente, on_delete=models.PROTECT, related_name="asistencias")
     asignacion = models.ForeignKey(
@@ -307,6 +313,17 @@ class AsistenciaResuelta(models.Model):
     estado = models.CharField(max_length=15, choices=Estado.choices)
     minutos_tardanza = models.PositiveIntegerField(default=0)
     horas_efectivas = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    horas_pedagogicas_descontadas = models.PositiveSmallIntegerField(
+        default=0,
+        help_text="Horas pedagógicas (45 min c/u) que ya habían transcurrido por "
+        "completo al momento de marcar entrada, cuando la tardanza es de 15 minutos "
+        "o más. Se descuentan automáticamente, sin revisión manual.",
+    )
+    salida_anticipada = models.BooleanField(
+        default=False,
+        help_text="El docente marcó salida antes de la hora programada de fin. "
+        "No se descuenta solo — queda para que jefatura decida.",
+    )
     requiere_revision = models.BooleanField(default=False)
 
     class Meta:
@@ -317,3 +334,25 @@ class AsistenciaResuelta(models.Model):
 
     def __str__(self):
         return f"{self.docente} — {self.fecha} — {self.get_estado_display()}"
+
+
+class Feriado(models.Model):
+    """Días en los que no hay obligación de marcar: feriados nacionales o
+    suspensión de labores por disposición superior. El motor de resolución
+    (cerrar_dia) no genera Falta ni ningún estado para estas fechas."""
+
+    class Tipo(models.TextChoices):
+        FERIADO_NACIONAL = "FERIADO_NACIONAL", "Feriado nacional"
+        SUSPENSION_SUPERIOR = "SUSPENSION_SUPERIOR", "Suspensión por disposición superior"
+
+    fecha = models.DateField(unique=True)
+    descripcion = models.CharField(max_length=200)
+    tipo = models.CharField(max_length=25, choices=Tipo.choices, default=Tipo.FERIADO_NACIONAL)
+
+    class Meta:
+        verbose_name = "Feriado / Suspensión"
+        verbose_name_plural = "Feriados y Suspensiones"
+        ordering = ["-fecha"]
+
+    def __str__(self):
+        return f"{self.fecha} — {self.descripcion}"

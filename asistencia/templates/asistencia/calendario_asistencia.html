@@ -1,0 +1,190 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Calendario de Asistencia{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; <a href="{% url 'admin:reporte_asistencia' %}">Reporte de Asistencia</a>
+    &rsaquo; Calendario (beta)
+</div>
+{% endblock %}
+{% block content %}
+<div class="pagina-centrada">
+<div class="no-imprimir">
+<h1>Calendario de Asistencia <span style="font-size:.7rem;font-weight:600;color:#a17a00;background:#fff2c9;padding:.15rem .5rem;border-radius:1rem;vertical-align:middle">BETA</span></h1>
+<p>Vista día por día, agrupada por curso y sección — igual que la planilla física, pero con los datos reales del biométrico. Esta vista es experimental y convive por ahora con el <a href="{% url 'admin:reporte_asistencia' %}">Reporte de Asistencia</a> normal.</p>
+
+<form method="get" class="filtros-horario">
+    <select name="promocion" onchange="location.href='?promocion='+this.value">
+        <option value="">-- Elige promoción --</option>
+        {% for p in promociones %}
+        <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% if promocion and periodos|length > 1 %}
+    <select name="periodo" onchange="this.form.submit()">
+        <option value="">-- Elige período --</option>
+        {% for per in periodos %}
+        <option value="{{ per.id }}" {% if periodo.id == per.id %}selected{% endif %}>
+            {{ per.nombre|default:per.numero_periodo }}
+        </option>
+        {% endfor %}
+    </select>
+    {% elif promocion and periodo %}
+    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+    {% endif %}
+    {% if periodo and especialidades %}
+    <select name="especialidad" onchange="this.form.submit()">
+        <option value="">-- Elige especialidad --</option>
+        {% for e in especialidades %}
+        <option value="{{ e.id }}" {% if especialidad.id == e.id %}selected{% endif %}>{{ e.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% endif %}
+    {% if grupo_listo %}
+    <select name="curso" onchange="this.form.submit()">
+        <option value="">-- Todos los cursos --</option>
+        {% for c in cursos_grupo %}
+        <option value="{{ c.id }}" {% if curso_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+    </select>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Desde
+        <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+    </label>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Hasta
+        <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+    </label>
+    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">Filtrar</button>
+    {% endif %}
+</form>
+
+{% if grupo_listo %}
+<div class="no-imprimir" style="display:flex;gap:.4rem;flex-wrap:wrap;margin:.6rem 0;align-items:center">
+    <span style="font-size:.8rem;color:#555">Ver solo:</span>
+    <a class="btn-dia {% if not dia_semana %}activo{% endif %}" href="?{{ base_qs_calendario }}">Todos los días</a>
+    {% for num, nombre in dias_semana %}
+    <a class="btn-dia {% if dia_semana == num %}activo{% endif %}" href="?{{ base_qs_calendario }}&dia={{ num }}">{{ nombre }}</a>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if grupo_listo %}
+<div style="display:flex;gap:1rem;flex-wrap:wrap;margin:.75rem 0;font-size:.78rem;color:#555">
+    <span><span class="cal-swatch cal-verde"></span> Puntual</span>
+    <span><span class="cal-swatch cal-amarillo"></span> Tardanza / incompleto / por revisar</span>
+    <span><span class="cal-swatch cal-rojo"></span> Falta</span>
+    <span><span class="cal-swatch cal-gris"></span> Sin dato todavía (día futuro o pendiente de cierre)</span>
+    <span><span class="cal-swatch cal-feriado"></span> Feriado / suspensión</span>
+    <span><span class="cal-swatch cal-noaplica"></span> Ese curso no tiene clase ese día</span>
+</div>
+{% endif %}
+</div>
+
+<style>
+    .cal-swatch { display:inline-block; width:.9rem; height:.9rem; border-radius:.2rem; vertical-align:middle; margin-right:.25rem; }
+    .cal-verde { background:#a8dfb3; }
+    .cal-amarillo { background:#f7d68a; }
+    .cal-rojo { background:#f3a3a3; }
+    .cal-gris { background:#e4e4e4; }
+    .cal-feriado { background:#d9c2f0; }
+    .cal-noaplica { background:#f7f5ef; border:1px dashed #ccc; }
+    .tabla-calendario { border-collapse: collapse; font-size: .72rem; }
+    .tabla-calendario th, .tabla-calendario td { border: 1px solid #e2ddd0; padding: .25rem .35rem; text-align: center; white-space: nowrap; }
+    .tabla-calendario th.col-fija, .tabla-calendario td.col-fija { text-align: left; white-space: normal; }
+    .tabla-calendario td.cal-verde { background:#dff3e7; }
+    .tabla-calendario td.cal-amarillo { background:#fdf1d6; }
+    .tabla-calendario td.cal-rojo { background:#fde2e2; }
+    .tabla-calendario td.cal-gris { background:#f5f5f2; color:#999; }
+    .tabla-calendario td.cal-feriado { background:#f1e6fa; color:#6a4a8a; font-weight:600; }
+    .tabla-calendario td.cal-noaplica { background:#faf9f5; color:#ccc; }
+    .tabla-calendario .celda-horas { font-size:.66rem; line-height:1.15; cursor:pointer; }
+    .tabla-calendario td.col-curso-vertical { text-align:center; vertical-align:middle; padding:.4rem .2rem; white-space:normal; }
+    .tabla-calendario td.col-curso-vertical span { writing-mode:vertical-rl; transform:rotate(180deg); font-size:.78rem; letter-spacing:.02em; white-space:normal; max-height:9rem; }
+    .tabla-calendario td.col-curso-vertical:first-child span { font-weight:700; }
+    .btn-dia { font-size:.78rem; padding:.25rem .65rem; border-radius:1rem; background:#fff; border:1px solid #d8d2c2; color:#555; text-decoration:none; }
+    .btn-dia.activo { background:var(--primary); color:#fff; border-color:var(--primary); font-weight:600; }
+    .tabla-calendario td.editable { position:relative; }
+    .tabla-calendario .celda-editor { position:absolute; z-index:20; top:100%; left:0; background:#fff; border:1px solid #d8d2c2; border-radius:.4rem; box-shadow:0 2px 8px rgba(0,0,0,.15); padding:.5rem; display:none; white-space:nowrap; text-align:left; }
+    .tabla-calendario .celda-editor.abierto { display:block; }
+    .tabla-calendario .celda-editor label { display:block; font-size:.68rem; color:#555; margin-bottom:.2rem; }
+    .tabla-calendario .celda-editor input, .tabla-calendario .celda-editor select { font-size:.72rem; padding:.15rem; margin-bottom:.3rem; width:7rem; }
+    .tabla-calendario .celda-editor button { font-size:.7rem; padding:.2rem .5rem; }
+</style>
+
+<div class="schedule-wrap">
+{% if grupo_listo %}
+<table class="tabla-calendario">
+    <thead>
+        <tr>
+            <th class="col-fija" rowspan="2">Curso</th>
+            <th rowspan="2">Hora</th>
+            <th class="col-fija" rowspan="2">Sección</th>
+            <th class="col-fija" rowspan="2">Docente</th>
+            {% for mes in meses_header %}
+            <th colspan="{{ mes.colspan }}">{{ mes.nombre }}</th>
+            {% endfor %}
+        </tr>
+        <tr>
+            {% for fecha in columnas_fecha %}
+            <th>{{ fecha|date:"d/m" }}</th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for grupo in grupos_curso %}
+            {% for fila in grupo.filas %}
+            <tr>
+                {% if forloop.first %}
+                <td class="col-curso-vertical" rowspan="{{ grupo.filas|length }}"><span>{{ grupo.curso }}</span></td>
+                <td class="col-curso-vertical" rowspan="{{ grupo.filas|length }}"><span>{% if grupo.hora_ini %}{{ grupo.hora_ini|time:"H:i" }}–{{ grupo.hora_fin|time:"H:i" }}{% endif %}</span></td>
+                {% endif %}
+                <td class="col-fija">{{ fila.aula }}</td>
+                <td class="col-fija">{{ fila.docente.grado }} {{ fila.docente.apellidos_nombres }}</td>
+                {% for celda in fila.celdas %}
+                    {% if not celda.aplica %}
+                    <td class="cal-noaplica">·</td>
+                    {% elif celda.feriado %}
+                    <td class="cal-feriado">F</td>
+                    {% elif celda.registro %}
+                    <td class="{{ celda.color }} editable no-imprimir-editor">
+                        <div class="celda-horas" onclick="document.getElementById('ed-{{ celda.registro.id }}').classList.toggle('abierto')">
+                            {% if celda.hora_entrada %}{{ celda.hora_entrada|time:"H:i" }}{% else %}—{% endif %}<br>
+                            {% if celda.hora_salida %}{{ celda.hora_salida|time:"H:i" }}{% else %}—{% endif %}
+                        </div>
+                        <div class="celda-editor no-imprimir" id="ed-{{ celda.registro.id }}">
+                            <form method="post" action="{% url 'admin:corregir_asistencia' celda.registro.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="volver_url" value="{{ volver_url }}">
+                                <label>Entrada <input type="time" name="hora_entrada" value="{% if celda.hora_entrada %}{{ celda.hora_entrada|time:'H:i' }}{% endif %}"></label>
+                                <label>Salida <input type="time" name="hora_salida" value="{% if celda.hora_salida %}{{ celda.hora_salida|time:'H:i' }}{% endif %}"></label>
+                                <label>Estado
+                                    <select name="estado">
+                                        {% for valor, etiqueta in estado_choices %}
+                                        <option value="{{ valor }}" {% if celda.registro.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <button type="submit" class="btn-mini btn-mini-primary">Guardar</button>
+                            </form>
+                        </div>
+                    </td>
+                    {% else %}
+                    <td class="cal-gris">
+                        <div class="celda-horas">—</div>
+                    </td>
+                    {% endif %}
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        {% empty %}
+        <tr><td class="col-fija" colspan="4" style="text-align:center;color:#888">No hay cursos con horario programado para este grupo todavía.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="no-imprimir" style="color:#666">Elige promoción, período{% if especialidades %} y especialidad{% endif %} para ver el calendario.</p>
+{% endif %}
+</div>
+</div>
+{% endblock %}

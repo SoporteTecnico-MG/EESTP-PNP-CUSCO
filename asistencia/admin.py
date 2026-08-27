@@ -5,6 +5,38 @@ from django.utils.html import format_html
 from . import models
 from . import views as asistencia_views
 
+admin.site.site_header = "EESTP PNP CUSCO — Control Docentes"
+admin.site.site_title = "Control Docentes"
+admin.site.index_title = "Panel de administración"
+
+_admin_index = admin.site.index
+
+
+def _index_con_estadisticas(request, extra_context=None):
+    from django.utils import timezone
+
+    extra_context = extra_context or {}
+    extra_context.update(
+        {
+            "stat_docentes": models.Docente.objects.filter(estado="ACTIVO").count(),
+            "stat_promociones": models.Promocion.objects.filter(estado="ACTIVA").count(),
+            "stat_aulas": models.Aula.objects.count(),
+            "stat_asignaciones_sin_horario": models.Asignacion.objects.filter(
+                oferta_curso__bloques__isnull=True
+            ).distinct().count(),
+            "stat_marcaciones_hoy": models.MarcacionBiometrica.objects.filter(
+                timestamp__date=timezone.localdate()
+            ).count(),
+            "stat_requieren_revision": models.AsistenciaResuelta.objects.filter(
+                requiere_revision=True
+            ).count(),
+        }
+    )
+    return _admin_index(request, extra_context)
+
+
+admin.site.index = _index_con_estadisticas
+
 _admin_get_urls = admin.site.get_urls
 
 
@@ -19,6 +51,31 @@ def _get_urls():
             "ver-horario/",
             admin.site.admin_view(asistencia_views.ver_horario),
             name="ver_horario",
+        ),
+        path(
+            "reporte-asistencia/",
+            admin.site.admin_view(asistencia_views.reporte_asistencia),
+            name="reporte_asistencia",
+        ),
+        path(
+            "corregir-asistencia/<int:pk>/",
+            admin.site.admin_view(asistencia_views.corregir_asistencia),
+            name="corregir_asistencia",
+        ),
+        path(
+            "corregir-asistencia-lote/",
+            admin.site.admin_view(asistencia_views.corregir_asistencia_lote),
+            name="corregir_asistencia_lote",
+        ),
+        path(
+            "calendario-asistencia/",
+            admin.site.admin_view(asistencia_views.calendario_asistencia),
+            name="calendario_asistencia",
+        ),
+        path(
+            "cuadro-inasistencia/",
+            admin.site.admin_view(asistencia_views.cuadro_inasistencia),
+            name="cuadro_inasistencia",
         ),
     ]
     return custom + _admin_get_urls()
@@ -98,7 +155,7 @@ class AsignacionInlineForm(forms.ModelForm):
         js = ("asistencia/admin_cascada.js",)
 
 
-class AsignacionInline(admin.TabularInline):
+class AsignacionInline(admin.StackedInline):
     """Cascada Promoción → Período → Aula → Curso, directo en la ficha del docente,
     sin salir a otra pantalla. El filtrado (incluida la especialidad del aula) lo
     hace admin_cascada.js. El horario se programa aparte, una vez por período,
@@ -138,7 +195,8 @@ class AulaAdmin(admin.ModelAdmin):
 
 @admin.register(models.PeriodoAcademico)
 class PeriodoAcademicoAdmin(admin.ModelAdmin):
-    list_display = ("promocion", "numero_periodo", "nombre", "fecha_inicio", "fecha_fin", "estado")
+    list_display = ("promocion", "numero_periodo", "nombre", "fecha_inicio", "fecha_fin", "estado", "usa_sabado")
+    list_editable = ("usa_sabado",)
     list_filter = ("promocion", "estado")
     ordering = ("promocion", "numero_periodo")
 
@@ -253,16 +311,41 @@ class MarcacionBiometricaAdmin(admin.ModelAdmin):
 
 @admin.register(models.AsistenciaResuelta)
 class AsistenciaResueltaAdmin(admin.ModelAdmin):
+    """Editable y creable a mano (para cuando el biométrico falló, o para
+    corregir un caso puntual) — no tiene readonly_fields a propósito."""
+
     list_display = (
         "docente",
         "fecha",
         "asignacion",
         "estado",
         "minutos_tardanza",
+        "horas_pedagogicas_descontadas",
         "horas_efectivas",
+        "salida_anticipada",
         "requiere_revision",
     )
-    list_filter = ("estado", "requiere_revision", "fecha")
+    list_filter = ("estado", "requiere_revision", "salida_anticipada", "fecha")
     search_fields = ("docente__apellidos_nombres", "docente__dni")
     ordering = ("-fecha", "docente")
     date_hierarchy = "fecha"
+    autocomplete_fields = ("docente", "asignacion", "marcacion_entrada", "marcacion_salida")
+
+
+@admin.register(models.Feriado)
+class FeriadoAdmin(admin.ModelAdmin):
+    """Feriados nacionales y suspensiones por disposición superior. El motor de
+    resolución (cerrar_dia) salta por completo estas fechas — no genera Falta."""
+
+    list_display = ("fecha", "descripcion", "tipo")
+    list_filter = ("tipo",)
+    search_fields = ("descripcion",)
+    ordering = ("-fecha",)
+    date_hierarchy = "fecha"
+    actions = ["limpiar_asistencias_de_estas_fechas"]
+
+    @admin.action(description="Eliminar asistencias resueltas ya generadas en estas fechas")
+    def limpiar_asistencias_de_estas_fechas(self, request, queryset):
+        fechas = list(queryset.values_list("fecha", flat=True))
+        borrados, _ = models.AsistenciaResuelta.objects.filter(fecha__in=fechas).delete()
+        self.message_user(request, f"Se eliminaron {borrados} registro(s) de asistencia de esas fechas.")

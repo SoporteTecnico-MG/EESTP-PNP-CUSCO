@@ -8,33 +8,56 @@ from asistencia.resolver import cerrar_dia, procesar_marcaciones_pendientes
 
 class Command(BaseCommand):
     help = (
-        "Cierra el día de asistencia: procesa las marcaciones pendientes y determina "
-        "el estado final (puntual/tardanza/falta/parcial/ambiguo) de cada Asignación "
-        "programada. Pensado para correr una vez, después de terminado el horario del día."
+        "Cierra uno o varios días de asistencia: procesa las marcaciones pendientes y "
+        "determina el estado final (puntual/tardanza/falta/parcial/ambiguo) de cada "
+        "Asignación programada. Respeta los Feriados y Suspensiones registrados "
+        "(esos días no generan ningún estado). Pensado para correr después de "
+        "terminado el horario del día (o de varios días atrasados, con --desde/--hasta)."
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--fecha",
-            help="Fecha a cerrar en formato DD/MM/AAAA. Por defecto, hoy.",
+            help="Cierra un solo día, en formato DD/MM/AAAA. Por defecto, hoy.",
+        )
+        parser.add_argument(
+            "--desde",
+            help="Cierra un rango de días: fecha inicial DD/MM/AAAA (usar junto con --hasta).",
+        )
+        parser.add_argument(
+            "--hasta",
+            help="Fecha final DD/MM/AAAA del rango (usar junto con --desde).",
         )
 
     def handle(self, *args, **options):
-        if options["fecha"]:
-            fecha = datetime.datetime.strptime(options["fecha"], "%d/%m/%Y").date()
+        if options["desde"] and options["hasta"]:
+            desde = datetime.datetime.strptime(options["desde"], "%d/%m/%Y").date()
+            hasta = datetime.datetime.strptime(options["hasta"], "%d/%m/%Y").date()
+            fechas = []
+            f = desde
+            while f <= hasta:
+                fechas.append(f)
+                f += datetime.timedelta(days=1)
+        elif options["fecha"]:
+            fechas = [datetime.datetime.strptime(options["fecha"], "%d/%m/%Y").date()]
         else:
-            fecha = timezone.localdate()
+            fechas = [timezone.localdate()]
 
-        self.stdout.write(f"Procesando marcaciones pendientes antes del cierre...")
+        self.stdout.write("Procesando marcaciones pendientes antes del cierre...")
         procesar_marcaciones_pendientes()
 
-        self.stdout.write(f"Cerrando el día {fecha.strftime('%d/%m/%Y')}...")
-        resumen = cerrar_dia(fecha)
+        total = {}
+        for fecha in fechas:
+            resumen = cerrar_dia(fecha)
+            if resumen:
+                self.stdout.write(f"  {fecha.strftime('%d/%m/%Y')}: {dict(resumen)}")
+                for k, v in resumen.items():
+                    total[k] = total.get(k, 0) + v
 
-        if not resumen:
-            self.stdout.write(self.style.WARNING("No había ninguna Asignación programada ese día."))
+        if not total:
+            self.stdout.write(self.style.WARNING("No hubo ninguna Asignación programada en ese rango (o todo era feriado/suspensión)."))
             return
 
-        self.stdout.write(self.style.SUCCESS("Cierre del día completado:"))
-        for clave, valor in resumen.items():
+        self.stdout.write(self.style.SUCCESS(f"Cierre completado ({len(fechas)} día(s) revisados):"))
+        for clave, valor in total.items():
             self.stdout.write(f"  {clave}: {valor}")

@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 from pathlib import Path
 from decouple import config, Csv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,6 +29,16 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
+# En Render/Railway/otros PaaS, Django necesita saber explícitamente que confía en
+# el dominio https desde el que llegan los formularios (si no, el POST del login
+# y de los formularios del sistema fallan con "CSRF verification failed").
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', default='', cast=Csv())
+
+# Detrás de un proxy (Render, Railway, etc.) la petición real es https, pero llega
+# a Django como http internamente — esta cabecera le dice a Django que confíe en
+# el proxy para saber que en realidad es https.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # Application definition
 
@@ -43,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -74,16 +86,25 @@ WSGI_APPLICATION = 'controldocentes.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+# Si existe DATABASE_URL (como la da Render/Railway/Supabase), se usa esa —
+# así el mismo settings.py sirve para desarrollo local y para la nube. En
+# local, sin DATABASE_URL, se arma la conexión con las variables DB_* de siempre.
+DATABASE_URL = config('DATABASE_URL', default='')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=True)
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('DB_NAME'),
+            'USER': config('DB_USER'),
+            'PASSWORD': config('DB_PASSWORD'),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='5432'),
+        }
+    }
 
 # Equipo biométrico ZKTeco iClock880
 BIOMETRICO_IP = config('BIOMETRICO_IP', default='192.168.101.200')
@@ -91,6 +112,11 @@ BIOMETRICO_PORT = config('BIOMETRICO_PORT', default=4370, cast=int)
 
 # Motor de resolución de asistencia
 TOLERANCIA_TARDANZA_MINUTOS = config('TOLERANCIA_TARDANZA_MINUTOS', default=20, cast=int)
+
+# A partir de cuántos minutos de tardanza se descuentan automáticamente las horas
+# pedagógicas ya transcurridas (regla de pago, distinta de la tolerancia de arriba
+# que solo clasifica el estado como Puntual/Tardanza).
+DESCUENTO_TARDANZA_MINUTOS = config('DESCUENTO_TARDANZA_MINUTOS', default=15, cast=int)
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/despues-login/'
@@ -132,6 +158,19 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.1/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
+
+# Cabeceras de seguridad — solo se activan cuando DEBUG=False (en la nube),
+# para no molestar en desarrollo local (donde no hay https).
+if not DEBUG:
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 
 
 # Email

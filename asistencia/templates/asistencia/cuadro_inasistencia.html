@@ -1,0 +1,124 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Cuadro de Inasistencia{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; <a href="{% url 'admin:reporte_asistencia' %}">Reporte de Asistencia</a>
+    &rsaquo; Cuadro de Inasistencia
+</div>
+{% endblock %}
+{% block content %}
+<div class="pagina-centrada">
+<div class="no-imprimir">
+<h1>Cuadro de Inasistencia</h1>
+<p>Formato oficial de faltas, separado por docentes PNP en actividad, PNP en retiro y civiles — con horas pedagógicas descontadas por cada falta.</p>
+
+<form method="get" class="filtros-horario">
+    <select name="promocion" onchange="location.href='?promocion='+this.value">
+        <option value="">-- Elige promoción --</option>
+        {% for p in promociones %}
+        <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% if promocion and periodos|length > 1 %}
+    <select name="periodo" onchange="this.form.submit()">
+        <option value="">-- Elige período --</option>
+        {% for per in periodos %}
+        <option value="{{ per.id }}" {% if periodo.id == per.id %}selected{% endif %}>
+            {{ per.nombre|default:per.numero_periodo }}
+        </option>
+        {% endfor %}
+    </select>
+    {% elif promocion and periodo %}
+    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+    {% endif %}
+    {% if promocion %}
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Desde
+        <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+    </label>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Hasta
+        <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+    </label>
+    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">Filtrar</button>
+    {% endif %}
+</form>
+</div>
+
+{% if periodo %}
+<div class="no-imprimir" style="display:flex;justify-content:flex-end;margin:.5rem 0">
+    <button type="button" onclick="window.print()" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">
+        🖨️ Imprimir / Exportar PDF
+    </button>
+</div>
+
+<style>
+    .cuadro-inasist { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+    .cuadro-inasist th, .cuadro-inasist td { border: 1px solid #333; padding: .4rem .5rem; font-size: .8rem; text-align: left; }
+    .cuadro-inasist th { background: #eee; text-align: center; }
+    .cuadro-inasist td.centro { text-align: center; }
+    .titulo-oficial { text-align: center; font-weight: 700; font-size: .95rem; margin-bottom: 1.2rem; text-transform: uppercase; line-height: 1.4; }
+    .subtitulo-grupo { font-weight: 700; margin: 1rem 0 .4rem; font-size: .9rem; }
+    .firmas { display: flex; justify-content: space-around; margin-top: 3rem; text-align: center; font-size: .82rem; }
+    .firmas div { width: 40%; }
+    .linea-firma { border-top: 1px solid #333; margin-top: 3rem; padding-top: .3rem; }
+</style>
+
+<div class="titulo-oficial">
+    Cuadro de inasistencia de docentes correspondiente
+    {% if periodo.nombre %}al {{ periodo.nombre }}{% else %}al {{ periodo.numero_periodo }}° período académico{% endif %}
+    de la promoción {{ promocion.nombre }} de la Escuela de Educación Superior Técnico Profesional PNP Cusco
+    {% if fecha_desde and fecha_hasta %}, del {{ fecha_desde|date:"d/m/Y" }} al {{ fecha_hasta|date:"d/m/Y" }}{% endif %}.
+</div>
+
+{% for etiqueta, filas in grupos_ordenados %}
+<div class="subtitulo-grupo">{{ etiqueta }}</div>
+<table class="cuadro-inasist">
+    <thead>
+        <tr>
+            <th style="width:3rem">N°</th>
+            <th style="width:9rem">Grado</th>
+            <th>Apellidos y Nombres</th>
+            <th>Asignatura</th>
+            <th style="width:7rem">Fecha de Falta</th>
+            <th style="width:5rem">Hrs. Dscto.</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for fila in filas %}
+        <tr>
+            <td class="centro">{{ fila.numero }}</td>
+            <td>{{ fila.grado }}</td>
+            <td>{{ fila.nombre }}</td>
+            <td>{{ fila.asignatura }}</td>
+            <td class="centro">{{ fila.fecha|date:"d/m/Y" }}</td>
+            <td class="centro">{{ fila.horas }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="centro" style="color:#888">Sin inasistencias en este grupo.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endfor %}
+
+<p style="text-align:right;font-size:.85rem;margin-top:1rem">Cusco, {% now "d \\d\\e F \\d\\e Y" %}</p>
+
+<div class="firmas">
+    <div>
+        <div class="linea-firma">
+            Jefe Área Asuntos Académicos<br>EESTP PNP Cusco
+        </div>
+    </div>
+    <div>
+        <div class="linea-firma">
+            Secretario Área Asuntos Académicos<br>EESTP PNP Cusco
+        </div>
+    </div>
+</div>
+
+{% else %}
+<p style="color:#666">Elige promoción (y período, si tiene más de uno) para generar el cuadro.</p>
+{% endif %}
+</div>
+{% endblock %}

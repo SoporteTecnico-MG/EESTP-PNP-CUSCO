@@ -91,7 +91,10 @@
         <div class="acceso">
             {% if user.is_authenticated %}
                 <span class="usuario-chip">{{ user.get_full_name|default:user.username }}</span>
-                <a class="btn-dorado" href="{% url 'asistencia:logout' %}">Cerrar sesión</a>
+                <form method="post" action="{% url 'asistencia:logout' %}" style="margin:0">
+                    {% csrf_token %}
+                    <button type="submit" class="btn-dorado" style="border:none; cursor:pointer; font-family:inherit; font-size:.88rem">Cerrar sesión</button>
+                </form>
             {% else %}
                 <a class="btn-dorado" href="{% url 'asistencia:login' %}">Iniciar sesión</a>
             {% endif %}

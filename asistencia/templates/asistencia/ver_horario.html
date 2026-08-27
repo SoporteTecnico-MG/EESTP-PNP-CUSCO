@@ -8,10 +8,11 @@
 {% endblock %}
 {% block content %}
 <div class="pagina-centrada">
+<div class="no-imprimir">
 <h1>Ver Horario</h1>
 
 <form method="get" class="filtros-horario">
-    <select name="promocion" onchange="this.form.submit()">
+    <select name="promocion" onchange="location.href='?promocion='+this.value">
         <option value="">-- Elige promoción --</option>
         {% for p in promociones %}
         <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
@@ -28,9 +29,22 @@
     </select>
     {% endif %}
 </form>
+</div>
 
 {% if aula %}
-<h2>{{ aula.codigo }} — {{ promocion.nombre }}{% if aula.especialidad %} · {{ aula.especialidad.nombre }}{% endif %}</h2>
+<div class="no-imprimir" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem">
+    <h2 style="margin-bottom:0">{{ aula.codigo }} — {{ promocion.nombre }}{% if aula.especialidad %} · {{ aula.especialidad.nombre }}{% endif %}</h2>
+    <button type="button" onclick="window.print()" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">
+        🖨️ Imprimir / Exportar PDF
+    </button>
+</div>
+
+<div class="solo-imprimir titulo-impresion">
+    <h1>HORARIO ACADÉMICO</h1>
+    <h2>{{ promocion.nombre }}{% if periodo %} — {{ periodo.nombre|default:periodo.numero_periodo }}{% endif %}</h2>
+    <h3>{{ aula.codigo }}{% if aula.especialidad %} · {{ aula.especialidad.nombre }}{% endif %} — EESTP PNP CUSCO</h3>
+</div>
+
 <div class="schedule-wrap">
 <table class="horario">
     <thead>
@@ -43,29 +57,34 @@
         {% for fila in grilla %}
         <tr>
             <th>{{ fila.hora.hora_inicio|time:"H:i" }}–{{ fila.hora.hora_fin|time:"H:i" }}</th>
-            {% if fila.es_receso %}
-            <td colspan="{{ dias|length }}" class="celda-receso">{{ fila.hora.get_tipo_display }}</td>
-            {% else %}
-                {% for celda in fila.celdas %}
-                    {% if celda.tipo == "inicio" %}
-                    <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
-                        <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
-                        <div class="docente-nombre">{{ celda.asignacion.docente.apellidos_nombres }}</div>
+            {% for celda in fila.celdas %}
+                {% if celda.tipo == "inicio" %}
+                <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
+                    <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
+                    {% if celda.asignacion %}
+                    <div class="docente-info">
+                        <div class="docente-grado-nombre">{{ celda.asignacion.docente.grado }} {{ celda.asignacion.docente.apellidos_nombres }}</div>
                         {% if celda.asignacion.docente.celular %}
                         <div class="docente-celular">{{ celda.asignacion.docente.celular }}</div>
                         {% endif %}
-                    </td>
-                    {% elif celda.tipo == "libre_lectura" %}
-                    <td class="celda-libre" style="color:#999">Estudio personalizado</td>
+                    </div>
                     {% endif %}
-                    {# celdas "ocupada" no se dibujan: quedan cubiertas por el rowspan de arriba #}
-                {% endfor %}
-            {% endif %}
+                </td>
+                {% elif celda.tipo == "receso" %}
+                <td class="celda-receso">{{ celda.etiqueta }}</td>
+                {% elif celda.tipo == "libre_lectura" %}
+                <td class="celda-libre" style="color:#999">Estudio personalizado</td>
+                {% endif %}
+                {# celdas "ocupada" no se dibujan: quedan cubiertas por el rowspan de arriba #}
+            {% endfor %}
         </tr>
         {% endfor %}
     </tbody>
 </table>
 </div>
+<p class="solo-imprimir" style="text-align:right;font-size:.7rem;color:#888;margin-top:.5rem">
+    Emitido: {% now "d/m/Y H:i" %}
+</p>
 {% else %}
 <p style="color:#666">Elige promoción y aula para ver su horario.</p>
 {% endif %}

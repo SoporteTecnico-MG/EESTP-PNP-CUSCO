@@ -17,15 +17,30 @@
 </section>
 
 <section style="display:flex; gap:1rem; flex-wrap:wrap">
+    {% if user.is_authenticated and user.is_staff %}
+    <a href="/admin/" style="flex:1; min-width:260px; background:#fff; border-radius:.5rem; padding:1.5rem; border-top:4px solid var(--verde); text-decoration:none; display:block; transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 10px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+        <h3 style="margin-top:0; color:var(--verde-oscuro)">Control Docentes →</h3>
+        <p style="color:#6b7a72; font-size:.9rem; margin-bottom:0">Asistencia biométrica, horarios y gestión académica del personal docente.</p>
+    </a>
+    {% else %}
     <div style="flex:1; min-width:260px; background:#fff; border-radius:.5rem; padding:1.5rem; border-top:4px solid var(--verde)">
         <h3 style="margin-top:0; color:var(--verde-oscuro)">Control Docentes</h3>
         <p style="color:#6b7a72; font-size:.9rem">Asistencia biométrica, horarios y gestión académica del personal docente.</p>
         <p style="font-size:.85rem; color:#8a978f">Inicia sesión con tu cuenta de administrador para entrar.</p>
     </div>
+    {% endif %}
+
+    {% if user.is_authenticated %}
+    <a href="{% url 'asistencia:aula_virtual' %}" style="flex:1; min-width:260px; background:#fff; border-radius:.5rem; padding:1.5rem; border-top:4px solid var(--dorado); text-decoration:none; display:block; transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 10px rgba(0,0,0,.12)'" onmouseout="this.style.boxShadow='none'">
+        <h3 style="margin-top:0; color:var(--verde-oscuro)">Aula Virtual →</h3>
+        <p style="color:#6b7a72; font-size:.9rem; margin-bottom:0">Clases, materiales y asistencia virtual para docentes y estudiantes. (Próximamente)</p>
+    </a>
+    {% else %}
     <div style="flex:1; min-width:260px; background:#fff; border-radius:.5rem; padding:1.5rem; border-top:4px solid var(--dorado)">
         <h3 style="margin-top:0; color:var(--verde-oscuro)">Aula Virtual</h3>
         <p style="color:#6b7a72; font-size:.9rem">Clases, materiales y asistencia virtual para docentes y estudiantes.</p>
         <p style="font-size:.85rem; color:#8a978f">Próximamente.</p>
     </div>
+    {% endif %}
 </section>
 {% endblock %}

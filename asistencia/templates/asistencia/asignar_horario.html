@@ -9,10 +9,10 @@
 {% block content %}
 <div class="pagina-centrada">
 <h1>Armar Horario</h1>
-<p>El horario de un curso se programa <strong>una sola vez por período</strong> — es el mismo para todas las aulas que lo dicten. Clic en un cuadro vacío para fijarlo por primera vez; en un curso ya programado, solo falta elegir el docente de esta aula.</p>
+<p>El horario de un curso se programa <strong>una sola vez por período</strong> — es el mismo para todas las aulas de este grupo. Clic en un cuadro vacío para fijar un día (o agregar otro día al mismo curso, ej. martes y jueves). El docente de cada aula se asigna aparte, desde la ficha del docente.</p>
 
 <form method="get" class="filtros-horario">
-    <select name="promocion" onchange="this.form.submit()">
+    <select name="promocion" onchange="location.href='?promocion='+this.value">
         <option value="">-- Elige promoción --</option>
         {% for p in promociones %}
         <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
@@ -30,26 +30,36 @@
     {% elif promocion and periodo %}
     <input type="hidden" name="periodo" value="{{ periodo.id }}">
     {% endif %}
-    {% if periodo %}
-    <select name="aula" onchange="this.form.submit()">
-        <option value="">-- Elige aula --</option>
-        {% for a in aulas %}
-        <option value="{{ a.id }}" {% if aula.id == a.id %}selected{% endif %}>
-            {{ a.codigo }}{% if a.especialidad %} — {{ a.especialidad.nombre }}{% endif %}
-        </option>
+    {% if periodo and especialidades %}
+    <select name="especialidad" onchange="this.form.submit()">
+        <option value="">-- Elige especialidad --</option>
+        {% for e in especialidades %}
+        <option value="{{ e.id }}" {% if especialidad.id == e.id %}selected{% endif %}>{{ e.nombre }}</option>
         {% endfor %}
     </select>
     {% endif %}
 </form>
 
+{% if periodo %}
+<form method="post" style="display:inline-block;margin:.5rem 0">
+    {% csrf_token %}
+    <input type="hidden" name="promocion" value="{{ promocion.id }}">
+    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+    <input type="hidden" name="accion" value="toggle_sabado">
+    <button type="submit" class="btn-mini {% if periodo.usa_sabado %}btn-mini-danger{% else %}btn-mini-primary{% endif %}" style="width:auto">
+        {% if periodo.usa_sabado %}Deshabilitar sábado{% else %}Habilitar sábado{% endif %}
+    </button>
+</form>
+{% endif %}
+
 {% if mensaje %}<div class="aviso-ok">{{ mensaje }}</div>{% endif %}
 {% if error %}<div class="aviso-error">{{ error }}</div>{% endif %}
 
-{% if aula and periodo %}
+{% if grupo_listo %}
 <p style="color:#666;font-size:.85rem">
-    Cursos de esta aula: comunes
-    {% if aula.especialidad %}+ propios de <strong>{{ aula.especialidad.nombre }}</strong>{% else %}(esta aula todavía no tiene especialidad asignada, solo se ofrecen comunes){% endif %}.
-    {% if not cursos_sin_horario %}
+    Grupo: {% if especialidad %}<strong>{{ especialidad.nombre }}</strong> (comunes + propios de esta especialidad){% else %}comunes (esta promoción todavía no se divide por especialidad){% endif %}.
+    {% if not cursos_para_programar %}
     No hay cursos con docente pendientes de horario — primero asigna docente a un curso desde la ficha del docente.
     {% endif %}
 </p>
@@ -65,45 +75,73 @@
         {% for fila in grilla %}
         <tr>
             <th>{{ fila.hora.hora_inicio|time:"H:i" }}–{{ fila.hora.hora_fin|time:"H:i" }}</th>
-            {% if fila.es_receso %}
-            <td colspan="{{ dias|length }}" class="celda-receso">{{ fila.hora.get_tipo_display }}</td>
-            {% else %}
                 {% for celda in fila.celdas %}
                     {% if celda.tipo == "inicio" %}
                     <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
                         <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
-                        <div class="docente-nombre">{{ celda.asignacion.docente.apellidos_nombres }}</div>
-                        {% if celda.asignacion.docente.celular %}
-                        <div class="docente-celular">{{ celda.asignacion.docente.celular }}</div>
-                        {% endif %}
-                        <form method="post" style="margin-top:.2rem">
+                        <details open>
+                            <summary>{{ celda.filas_aula|length }} aula(s) del grupo</summary>
+                            {% for fa in celda.filas_aula %}
+                            <div class="docente-info" style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">
+                                <strong style="min-width:2.4rem;font-size:.8rem">{{ fa.aula.codigo }}</strong>
+                                {% if fa.asignacion %}
+                                <div style="flex:1">
+                                    <div class="docente-grado-nombre">{{ fa.asignacion.docente.grado }} {{ fa.asignacion.docente.apellidos_nombres }}</div>
+                                    {% if fa.asignacion.docente.celular %}<div class="docente-celular">{{ fa.asignacion.docente.celular }}</div>{% endif %}
+                                </div>
+                                <form method="post" style="margin:0;display:flex;gap:.2rem;flex:1;max-width:11rem">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
+                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+                                    <input type="hidden" name="accion" value="asignar_docente">
+                                    <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
+                                    <input type="hidden" name="aula_id" value="{{ fa.aula.id }}">
+                                    <select name="docente" required style="flex:1" title="Cambiar docente">
+                                        {% for d in docentes %}
+                                        <option value="{{ d.id }}" {% if d.id == fa.asignacion.docente_id %}selected{% endif %}>{{ d.apellidos_nombres }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto" title="Cambiar docente">↻</button>
+                                </form>
+                                <form method="post" style="margin:0" title="Quitar docente de esta aula">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
+                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+                                    <input type="hidden" name="accion" value="quitar_docente">
+                                    <input type="hidden" name="asignacion_id" value="{{ fa.asignacion.id }}">
+                                    <button type="submit" class="btn-mini btn-mini-danger" style="padding:0 .3rem">×</button>
+                                </form>
+                                {% else %}
+                                <form method="post" style="margin:0;display:flex;gap:.2rem;flex:1">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
+                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+                                    <input type="hidden" name="accion" value="asignar_docente">
+                                    <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
+                                    <input type="hidden" name="aula_id" value="{{ fa.aula.id }}">
+                                    <select name="docente" required style="flex:1">
+                                        <option value="">sin asignar...</option>
+                                        {% for d in docentes %}
+                                        <option value="{{ d.id }}">{{ d.apellidos_nombres }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto">OK</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </details>
+                        <form method="post" style="margin-top:.3rem">
                             {% csrf_token %}
                             <input type="hidden" name="promocion" value="{{ promocion.id }}">
                             <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                            <input type="hidden" name="aula" value="{{ aula.id }}">
-                            <input type="hidden" name="accion" value="quitar_docente">
-                            <input type="hidden" name="asignacion_id" value="{{ celda.asignacion.id }}">
-                            <button type="submit" class="btn-mini btn-mini-danger">Quitar de esta aula</button>
-                        </form>
-                    </td>
-                    {% elif celda.tipo == "pendiente_docente" %}
-                    <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
-                        <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
-                        <div class="docente-nombre" style="opacity:.7">falta docente en esta aula</div>
-                        <form method="post" style="margin-top:.2rem">
-                            {% csrf_token %}
-                            <input type="hidden" name="promocion" value="{{ promocion.id }}">
-                            <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                            <input type="hidden" name="aula" value="{{ aula.id }}">
-                            <input type="hidden" name="accion" value="asignar_docente">
-                            <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
-                            <select name="docente" required>
-                                <option value="">Docente...</option>
-                                {% for d in docentes %}
-                                <option value="{{ d.id }}">{{ d.apellidos_nombres }}</option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit" class="btn-mini btn-mini-primary">Asignar</button>
+                            {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+                            <input type="hidden" name="accion" value="quitar_bloque">
+                            <input type="hidden" name="bloque_id" value="{{ celda.bloque.id }}">
+                            <button type="submit" class="btn-mini btn-mini-danger">Quitar este bloque</button>
                         </form>
                     </td>
                     {% elif celda.tipo == "libre" %}
@@ -114,15 +152,15 @@
                                 {% csrf_token %}
                                 <input type="hidden" name="promocion" value="{{ promocion.id }}">
                                 <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                                <input type="hidden" name="aula" value="{{ aula.id }}">
+                                {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
                                 <input type="hidden" name="accion" value="programar_curso">
                                 <input type="hidden" name="dia_semana" value="{{ celda.dia }}">
                                 <input type="hidden" name="hora_pedagogica_inicio" value="{{ celda.hora_inicio_id }}">
                                 <select name="curso" required>
-                                    <option value="">Curso (con docente, sin horario)...</option>
-                                    {% for a in cursos_sin_horario %}
-                                    <option value="{{ a.oferta_curso.curso_id }}">
-                                        {{ a.oferta_curso.curso.nombre }} — {{ a.docente.apellidos_nombres }}
+                                    <option value="">Curso (con docente)...</option>
+                                    {% for c in cursos_para_programar %}
+                                    <option value="{{ c.oferta.curso_id }}">
+                                        {{ c.oferta.curso.nombre }} — {{ c.docentes }}{% if c.dias_ya_puestos %} (ya: {{ c.dias_ya_puestos|join:", " }}){% endif %}
                                     </option>
                                     {% endfor %}
                                 </select>
@@ -135,17 +173,20 @@
                             </form>
                         </details>
                     </td>
+                    {% elif celda.tipo == "receso" %}
+                    <td class="celda-receso">{{ celda.etiqueta }}</td>
                     {% endif %}
                     {# celdas "ocupada" no se dibujan: quedan cubiertas por el rowspan de la celda de inicio #}
                 {% endfor %}
-            {% endif %}
         </tr>
         {% endfor %}
     </tbody>
 </table>
 </div>
+{% elif periodo and especialidades %}
+<p style="color:#666">Esta promoción ya se divide por especialidad — elige una arriba para ver/armar su horario.</p>
 {% else %}
-<p style="color:#666">Elige promoción, período y aula para empezar a armar el horario.</p>
+<p style="color:#666">Elige promoción y período para empezar a armar el horario.</p>
 {% endif %}
 </div>
 {% endblock %}

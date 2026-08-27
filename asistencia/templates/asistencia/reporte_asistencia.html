@@ -1,0 +1,263 @@
+{% extends "admin/base_site.html" %}
+{% block title %}Reporte de Asistencia{% endblock %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Inicio</a>
+    &rsaquo; Reporte de Asistencia
+</div>
+{% endblock %}
+{% block content %}
+<div class="pagina-centrada">
+<div class="no-imprimir">
+<h1>Reporte de Asistencia</h1>
+<p>Separado por promoción y período — para cada docente muestra registro de entrada, salida y observaciones (tardanza, descuentos, casos por revisar). También puedes probar la <a href="{% url 'admin:calendario_asistencia' %}">vista de calendario día por día (beta)</a>, o generar el <a href="{% url 'admin:cuadro_inasistencia' %}">Cuadro de Inasistencia</a> (formato oficial, separado por PNP/PNP (r)/civiles).</p>
+
+<form method="get" class="filtros-horario">
+    <select name="promocion" onchange="location.href='?promocion='+this.value">
+        <option value="">-- Todas las promociones --</option>
+        {% for p in promociones %}
+        <option value="{{ p.id }}" {% if promocion.id == p.id %}selected{% endif %}>{{ p.nombre }}</option>
+        {% endfor %}
+    </select>
+    {% if promocion and periodos|length > 1 %}
+    <select name="periodo" onchange="this.form.submit()">
+        <option value="">-- Todos los períodos --</option>
+        {% for per in periodos %}
+        <option value="{{ per.id }}" {% if periodo.id == per.id %}selected{% endif %}>
+            {{ per.nombre|default:per.numero_periodo }}
+        </option>
+        {% endfor %}
+    </select>
+    {% elif promocion and periodo %}
+    <input type="hidden" name="periodo" value="{{ periodo.id }}">
+    {% endif %}
+    <select name="docente" onchange="this.form.submit()">
+        <option value="">-- Todos los docentes --</option>
+        {% for d in docentes %}
+        <option value="{{ d.id }}" {% if docente_id == d.id|stringformat:"s" %}selected{% endif %}>{{ d.apellidos_nombres }}</option>
+        {% endfor %}
+    </select>
+    <select name="curso" onchange="this.form.submit()">
+        <option value="">-- Todos los cursos --</option>
+        {% for c in cursos_filtro %}
+        <option value="{{ c.id }}" {% if curso_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nombre }}</option>
+        {% endfor %}
+    </select>
+    <select name="estado" onchange="this.form.submit()">
+        <option value="">-- Todos los estados --</option>
+        {% for valor, etiqueta in estado_choices %}
+        <option value="{{ valor }}" {% if estado_filtro == valor %}selected{% endif %}>{{ etiqueta }}</option>
+        {% endfor %}
+    </select>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Desde
+        <input type="date" name="fecha_desde" value="{{ fecha_desde }}">
+    </label>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        Hasta
+        <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}">
+    </label>
+    <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
+        <input type="checkbox" name="solo_descuento" {% if solo_descuento %}checked{% endif %}>
+        Solo con descuento
+    </label>
+    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">Filtrar</button>
+</form>
+</div>
+
+<div class="no-imprimir" style="display:flex;justify-content:flex-end;margin-bottom:.5rem">
+    <button type="button" onclick="window.print()" class="btn-mini btn-mini-primary" style="width:auto;padding:.45rem 1rem;font-size:.85rem">
+        🖨️ Imprimir / Exportar PDF
+    </button>
+</div>
+
+<div class="solo-imprimir titulo-impresion">
+    <h1>
+        {% if solo_descuento %}REPORTE DE DESCUENTOS POR TARDANZA
+        {% elif estado_filtro %}REPORTE DE ASISTENCIA — SOLO {{ estado_filtro }}
+        {% else %}REPORTE DE ASISTENCIA DOCENTE{% endif %}
+    </h1>
+    <h2>{% if promocion %}{{ promocion.nombre }}{% else %}Todas las promociones{% endif %} — {% if periodo %}{{ periodo.nombre|default:periodo.numero_periodo }}{% else %}Todos los períodos{% endif %}</h2>
+    <h3>EESTP PNP CUSCO</h3>
+</div>
+
+<div class="ed-stats" style="margin-bottom:1rem">
+    <div class="ed-stat"><div class="num">{{ resumen.puntual }}</div><div class="lbl">Puntual</div></div>
+    <div class="ed-stat alerta"><div class="num">{{ resumen.tardanza }}</div><div class="lbl">Tardanza</div></div>
+    <div class="ed-stat alerta"><div class="num">{{ resumen.falta }}</div><div class="lbl">Falta</div></div>
+    <div class="ed-stat"><div class="num">{{ resumen.recuperacion }}</div><div class="lbl">Recuperación nocturna</div></div>
+    <div class="ed-stat alerta"><div class="num">{{ resumen.horas_descontadas }}</div><div class="lbl">Horas ped. descontadas</div></div>
+    <div class="ed-stat alerta"><div class="num">{{ resumen.por_revisar }}</div><div class="lbl">Por revisar</div></div>
+</div>
+
+<style>
+    .tabla-reporte td, .tabla-reporte th { text-align: left !important; }
+    .th-orden { color: inherit; text-decoration: none; display: inline-block; white-space: nowrap; }
+    .th-orden:hover { text-decoration: underline; }
+    .corregir-inline summary { cursor: pointer; font-size: .78rem; color: #a13a3a; font-weight: 600; margin-top: .2rem; }
+    .corregir-inline form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-end; margin-top: .5rem; padding: .6rem; background: #fdf5f5; border: 1px solid #f0d5d5; border-radius: .4rem; min-width: 340px; }
+    .corregir-inline label { display: flex; flex-direction: column; font-size: .72rem; color: #555; gap: .15rem; }
+    .corregir-inline label.chk { flex-direction: row; align-items: center; gap: .3rem; font-size: .74rem; }
+    .corregir-inline input, .corregir-inline select { font-size: .8rem; padding: .2rem .3rem; }
+    .corregir-inline button { font-size: .78rem; padding: .3rem .8rem; }
+    .barra-lote { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; background:#f3ede0; border:1px solid #e2d8bd; border-radius:.4rem; padding:.5rem .75rem; margin-bottom:.5rem; font-size:.82rem; }
+    .barra-lote select { font-size:.8rem; padding:.2rem .3rem; }
+</style>
+
+<form id="form-lote" method="post" action="{% url 'admin:corregir_asistencia_lote' %}" class="no-imprimir barra-lote">
+    {% csrf_token %}
+    <input type="hidden" name="volver_qs" value="{{ volver_qs }}">
+    <strong id="contador-lote">0 seleccionadas</strong>
+    <select name="accion_lote">
+        <option value="marcar_resuelto">Marcar como resueltas (ya no requieren revisión)</option>
+        <option value="cambiar_estado">Cambiar estado de todas a…</option>
+    </select>
+    <select name="estado_lote">
+        {% for valor, etiqueta in estado_choices %}
+        <option value="{{ valor }}">{{ etiqueta }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit" id="btn-aplicar-lote" class="btn-mini btn-mini-primary" style="width:auto" disabled>
+        Aplicar a seleccionadas
+    </button>
+</form>
+
+<div class="schedule-wrap">
+<table class="horario tabla-reporte">
+    <thead>
+        <tr>
+            <th class="no-imprimir">
+                <input type="checkbox" id="chk-todos" title="Seleccionar todas las filas corregibles">
+            </th>
+            {% if not promocion %}<th>Promoción</th>{% endif %}
+            <th>Período</th>
+            <th>
+                <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.fecha }}">
+                    Fecha / Hora {% if campo_orden == "fecha" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.curso }}">
+                    Curso {% if campo_orden == "curso" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.seccion }}">
+                    Sección {% if campo_orden == "seccion" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
+                </a>
+            </th>
+            <th>
+                <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.docente }}">
+                    Grado y Docente {% if campo_orden == "docente" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
+                </a>
+            </th>
+            <th>Reg. Entrada</th>
+            <th>Reg. Salida</th>
+            <th>
+                <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.estado }}">
+                    Estado {% if campo_orden == "estado" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
+                </a>
+            </th>
+            <th>Obs.</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for f in filas %}
+        {% if f.es_feriado %}
+        <tr>
+            <td class="no-imprimir"></td>
+            {% if not promocion %}<td>{{ f.promocion_nombre }}</td>{% endif %}
+            <td>{{ f.periodo_nombre }}</td>
+            <td>{{ f.fecha_display|date:"d/m/Y" }}</td>
+            <td colspan="7" style="text-align:center;font-size:1.3rem;font-weight:700;color:#8a6d00;background:#fff6d8">
+                FERIADO — {{ f.descripcion }}
+            </td>
+        </tr>
+        {% else %}
+        <tr id="fila-{{ f.registro.id }}">
+            <td class="no-imprimir">
+                {% if f.registro.requiere_revision or f.registro.estado == "FALTA" %}
+                <input type="checkbox" name="seleccion" value="{{ f.registro.id }}" form="form-lote" class="chk-fila">
+                {% endif %}
+            </td>
+            {% if not promocion %}<td>{{ f.promocion_nombre }}</td>{% endif %}
+            <td>{{ f.periodo_nombre }}</td>
+            <td>
+                {{ f.registro.fecha|date:"d/m/Y" }}
+                {% if f.hora_inicio_display %}<br><span style="color:#888;font-size:.8rem">{{ f.hora_inicio_display|time:"H:i" }}{% if f.hora_fin_display %} – {{ f.hora_fin_display|time:"H:i" }}{% endif %}</span>{% endif %}
+            </td>
+            <td>{{ f.curso }}</td>
+            <td>{{ f.aula }}</td>
+            <td>{{ f.registro.docente.grado }} {{ f.registro.docente.apellidos_nombres }}</td>
+            <td style="background:{% if f.cumplio %}#dff3e7{% else %}#fde2e2{% endif %}">{% if f.hora_entrada %}{{ f.hora_entrada|time:"H:i" }}{% else %}—{% endif %}</td>
+            <td style="background:{% if f.cumplio %}#dff3e7{% else %}#fde2e2{% endif %}">{% if f.hora_salida %}{{ f.hora_salida|time:"H:i" }}{% else %}—{% endif %}</td>
+            <td>{{ f.registro.get_estado_display }}</td>
+            <td>
+                {{ f.obs }}
+                {% if f.registro.requiere_revision or f.registro.estado == "FALTA" %}
+                <details class="no-imprimir corregir-inline">
+                    <summary>✎ Corregir</summary>
+                    <form method="post" action="{% url 'admin:corregir_asistencia' f.registro.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="volver_qs" value="{{ volver_qs }}">
+                        <label>Entrada
+                            <input type="time" name="hora_entrada" value="{% if f.hora_entrada %}{{ f.hora_entrada|time:'H:i' }}{% endif %}">
+                        </label>
+                        <label>Salida
+                            <input type="time" name="hora_salida" value="{% if f.hora_salida %}{{ f.hora_salida|time:'H:i' }}{% endif %}">
+                        </label>
+                        <label>Estado
+                            <select name="estado">
+                                {% for valor, etiqueta in estado_choices %}
+                                <option value="{{ valor }}" {% if f.registro.estado == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <label class="chk">
+                            <input type="checkbox" name="requiere_revision">
+                            Sigue pendiente de revisar
+                        </label>
+                        <button type="submit" class="btn-mini btn-mini-primary">Guardar</button>
+                    </form>
+                </details>
+                {% endif %}
+            </td>
+        </tr>
+        {% endif %}
+        {% empty %}
+        <tr><td colspan="{% if promocion %}10{% else %}11{% endif %}" style="text-align:center;color:#888">Sin asistencias resueltas todavía para este rango.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="solo-imprimir" style="text-align:right;font-size:.7rem;color:#888;margin-top:.5rem">
+    Emitido: {% now "d/m/Y H:i" %}
+</p>
+</div>
+<script>
+(function () {
+    var chkTodos = document.getElementById("chk-todos");
+    var btnAplicar = document.getElementById("btn-aplicar-lote");
+    var contador = document.getElementById("contador-lote");
+
+    function filas() {
+        return document.querySelectorAll(".chk-fila");
+    }
+
+    function actualizar() {
+        var marcadas = document.querySelectorAll(".chk-fila:checked").length;
+        if (contador) contador.textContent = marcadas + " seleccionadas";
+        if (btnAplicar) btnAplicar.disabled = marcadas === 0;
+    }
+
+    if (chkTodos) {
+        chkTodos.addEventListener("change", function () {
+            filas().forEach(function (c) { c.checked = chkTodos.checked; });
+            actualizar();
+        });
+    }
+    filas().forEach(function (c) { c.addEventListener("change", actualizar); });
+    actualizar();
+})();
+</script>
+{% endblock %}
