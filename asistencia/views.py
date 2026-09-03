@@ -24,6 +24,7 @@ from .models import (
     OfertaCurso,
     PeriodoAcademico,
     Promocion,
+    registrar_actividad,
 )
 
 DIAS = list(BloqueHorario.Dia.choices)
@@ -91,6 +92,47 @@ def aula_virtual(request):
     """Marcador de posición — el Aula Virtual todavía no está construida, se
     planificará como una fase aparte."""
     return render(request, "asistencia/aula_virtual.html")
+
+
+@login_required
+def mi_cuenta(request):
+    """Cada usuario puede editar sus propios datos personales (nombre,
+    apellido, correo) y cambiar su contraseña — sin necesitar al
+    administrador general para eso."""
+    from django.contrib.auth import update_session_auth_hash
+    from django.contrib.auth.forms import PasswordChangeForm
+
+    user = request.user
+    datos_form = None
+    clave_form = None
+
+    if request.method == "POST" and request.POST.get("accion") == "datos":
+        user.first_name = request.POST.get("first_name", "").strip()
+        user.last_name = request.POST.get("last_name", "").strip()
+        user.email = request.POST.get("email", "").strip()
+        user.save(update_fields=["first_name", "last_name", "email"])
+        registrar_actividad(request, "Actualizó sus datos personales")
+        return redirect(f"{reverse('asistencia:mi_cuenta')}?ok_datos=1")
+
+    if request.method == "POST" and request.POST.get("accion") == "clave":
+        clave_form = PasswordChangeForm(user=user, data=request.POST)
+        if clave_form.is_valid():
+            clave_form.save()
+            update_session_auth_hash(request, user)
+            registrar_actividad(request, "Cambió su contraseña")
+            return redirect(f"{reverse('asistencia:mi_cuenta')}?ok_clave=1")
+    else:
+        clave_form = PasswordChangeForm(user=user)
+
+    return render(
+        request,
+        "asistencia/mi_cuenta.html",
+        {
+            "clave_form": clave_form,
+            "ok_datos": request.GET.get("ok_datos") == "1",
+            "ok_clave": request.GET.get("ok_clave") == "1",
+        },
+    )
 
 
 def _curso_color(nombre):
@@ -854,6 +896,12 @@ def corregir_asistencia(request, pk):
     ar.requiere_revision = request.POST.get("requiere_revision") == "on"
     ar.save()
 
+    registrar_actividad(
+        request,
+        "Corrección de asistencia",
+        detalle=f"{ar.docente} — {ar.fecha} — estado: {ar.get_estado_display()}",
+    )
+
     return redirect(f"{_url_de_vuelta(request)}#fila-{ar.id}")
 
 
@@ -871,11 +919,17 @@ def corregir_asistencia_lote(request):
         registros = AsistenciaResuelta.objects.filter(pk__in=ids)
         if accion == "marcar_resuelto":
             registros.update(requiere_revision=False)
+            registrar_actividad(request, "Corrección en lote", detalle=f"marcar_resuelto — {len(ids)} fila(s)")
         elif accion == "cambiar_estado":
             estado_lote = request.POST.get("estado_lote")
             if estado_lote in AsistenciaResuelta.Estado.values:
                 registros.update(
                     estado=estado_lote, requiere_revision=False, corregido_manualmente=True
+                )
+                registrar_actividad(
+                    request,
+                    "Corrección en lote",
+                    detalle=f"estado: {estado_lote} — {len(ids)} fila(s)",
                 )
 
     return redirect(_url_de_vuelta(request))
@@ -1227,5 +1281,6 @@ def sincronizar_biometrico_vista(request):
     from .biometrico import sincronizar_biometrico
 
     resultado = sincronizar_biometrico()
+    registrar_actividad(request, "Sincronización manual del biométrico", detalle=resultado["mensaje"])
     params = f"msg={quote(resultado['mensaje'])}" if resultado["ok"] else f"error={quote(resultado['mensaje'])}"
     return redirect(f"{reverse('admin:index')}?{params}")

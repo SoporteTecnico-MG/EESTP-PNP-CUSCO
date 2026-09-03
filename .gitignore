@@ -10,6 +10,8 @@ media/
 # Datos reales de docentes (DNI, nombres, etc.) - informacion personal, no va a git
 *.xlsx
 *.xls
+backups/
+logs/
 
 # Archivos de sesion de Claude Code, no forman parte del proyecto
 .claude/

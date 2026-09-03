@@ -217,7 +217,7 @@
         </nav>
         <div class="acceso">
             {% if user.is_authenticated %}
-                <span class="usuario-chip">{{ user.get_full_name|default:user.username }}</span>
+                <a href="{% url 'asistencia:mi_cuenta' %}" class="usuario-chip" style="color:#fdfaf0; text-decoration:none;">{{ user.get_full_name|default:user.username }} ⚙</a>
                 <form method="post" action="{% url 'asistencia:logout' %}" style="margin:0">
                     {% csrf_token %}
                     <button type="submit" class="btn-dorado" style="border:none; cursor:pointer; font-family:inherit; font-size:.88rem">Cerrar sesión</button>

@@ -370,3 +370,31 @@ class FeriadoAdmin(admin.ModelAdmin):
         fechas = list(queryset.values_list("fecha", flat=True))
         borrados, _ = models.AsistenciaResuelta.objects.filter(fecha__in=fechas).delete()
         self.message_user(request, f"Se eliminaron {borrados} registro(s) de asistencia de esas fechas.")
+
+
+@admin.register(models.RegistroActividad)
+class RegistroActividadAdmin(admin.ModelAdmin):
+    """Bitácora de acciones del sistema (login/logout, correcciones,
+    sincronizaciones manuales). Solo el administrador general (superusuario)
+    puede verla — para el resto de usuarios, ni siquiera aparece en el menú."""
+
+    list_display = ("fecha_hora", "usuario", "accion", "detalle")
+    list_filter = ("accion",)
+    search_fields = ("usuario__username", "accion", "detalle")
+    date_hierarchy = "fecha_hora"
+    ordering = ("-fecha_hora",)
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_superuser
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

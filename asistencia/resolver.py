@@ -114,6 +114,56 @@ def _dt_aware(fecha, hora):
     return timezone.make_aware(dt) if timezone.is_naive(dt) else dt
 
 
+def _actualizar_estado_provisional(ar, inicio_dt, fin_dt):
+    """Recalcula Puntual/Tardanza/Solo entrada/Solo salida apenas se vincula
+    una marca real, para que el calendario muestre el estado correcto durante
+    el día — antes se quedaba en el "Falta" por defecto hasta el cierre de
+    las 23:00, aunque ya hubiera una hora de entrada real registrada. El
+    cierre diario (cerrar_dia) sigue siendo el único que marca Falta total
+    (con el descuento de horas pedagógicas) para quien de plano no marcó
+    nada, y el único que recalcula el descuento por tardanza (necesita ver
+    todos los bloques de la Asignación juntos, no uno por uno)."""
+    if ar.corregido_manualmente or ar.estado == AsistenciaResuelta.Estado.AMBIGUO:
+        return
+
+    tiene_entrada = ar.marcacion_entrada_id is not None
+    tiene_salida = ar.marcacion_salida_id is not None
+    if not tiene_entrada and not tiene_salida:
+        return
+
+    ar.salida_anticipada = False
+
+    if tiene_entrada and tiene_salida:
+        minutos_tarde = max(
+            0, int((ar.marcacion_entrada.timestamp - inicio_dt).total_seconds() // 60)
+        )
+        ar.minutos_tardanza = minutos_tarde
+        ar.estado = (
+            AsistenciaResuelta.Estado.TARDANZA
+            if (ar.marcacion_entrada.timestamp - inicio_dt) > timedelta(minutes=TOLERANCIA_MINUTOS)
+            else AsistenciaResuelta.Estado.PUNTUAL
+        )
+        horas_efectivas = (
+            ar.marcacion_salida.timestamp - ar.marcacion_entrada.timestamp
+        ).total_seconds() / 3600
+        ar.horas_efectivas = round(max(0, horas_efectivas), 2)
+        if (fin_dt - ar.marcacion_salida.timestamp) > timedelta(minutes=1):
+            ar.salida_anticipada = True
+        ar.requiere_revision = ar.salida_anticipada
+    elif tiene_entrada:
+        minutos_tarde = max(
+            0, int((ar.marcacion_entrada.timestamp - inicio_dt).total_seconds() // 60)
+        )
+        ar.minutos_tardanza = minutos_tarde
+        ar.estado = AsistenciaResuelta.Estado.SOLO_ENTRADA
+        ar.requiere_revision = True
+    else:
+        ar.estado = AsistenciaResuelta.Estado.SOLO_SALIDA
+        ar.requiere_revision = True
+
+    ar.save()
+
+
 def procesar_marcaciones_pendientes():
     """Asocia marcaciones nuevas a las Asignaciones del docente ese día.
 
@@ -291,6 +341,7 @@ def procesar_marcaciones_pendientes():
 
             if cambios:
                 ar.save(update_fields=cambios)
+            _actualizar_estado_provisional(ar, inicio_dt, fin_dt)
             resultados["vinculada"] += 1
 
     return dict(resultados)

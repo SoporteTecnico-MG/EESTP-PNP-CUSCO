@@ -1,0 +1,123 @@
+{% extends "asistencia/base_publico.html" %}
+{% block titulo %}Mi cuenta — EESTP PNP CUSCO{% endblock %}
+{% block extra_head %}
+<style>
+    .cuenta-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    .cuenta-tarjeta {
+        background: #fff;
+        border: 1px solid #e3ddc9;
+        border-radius: .6rem;
+        padding: 1.6rem;
+    }
+    .cuenta-tarjeta h2 {
+        margin: 0 0 1.2rem;
+        color: var(--verde-oscuro);
+        font-size: 1.1rem;
+        border-bottom: 2px solid var(--dorado);
+        padding-bottom: .35rem;
+        display: inline-block;
+    }
+    .cuenta-tarjeta .campo { margin-bottom: 1.1rem; }
+    .cuenta-tarjeta label {
+        display: block;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #6b7a72;
+        margin-bottom: .3rem;
+    }
+    .cuenta-tarjeta input {
+        width: 100%;
+        padding: .55rem .6rem;
+        border: 1px solid #d7d2bf;
+        border-radius: .35rem;
+        font-size: .92rem;
+    }
+    .cuenta-tarjeta input:focus { outline: none; border-color: var(--verde); }
+    .cuenta-tarjeta .error { color: #a83232; font-size: .8rem; margin-top: .25rem; }
+    .btn-guardar {
+        background: var(--verde-oscuro);
+        color: #fff;
+        font-weight: 700;
+        border: none;
+        border-radius: .4rem;
+        padding: .65rem 1.2rem;
+        font-size: .9rem;
+        cursor: pointer;
+    }
+    .btn-guardar:hover { background: var(--verde); }
+    .aviso-ok {
+        background: #e4f4e8;
+        border: 1px solid #8fc9a0;
+        color: #1c5c33;
+        padding: .6rem .8rem;
+        border-radius: .4rem;
+        margin-bottom: 1.2rem;
+        font-size: .85rem;
+    }
+    @media (max-width: 720px) {
+        .cuenta-grid { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo; Mi cuenta</div>
+
+<h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Mi cuenta</h1>
+
+<div class="cuenta-grid">
+    <div class="cuenta-tarjeta">
+        <h2>Datos personales</h2>
+        {% if ok_datos %}<div class="aviso-ok">Tus datos se actualizaron correctamente.</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="datos">
+            <div class="campo">
+                <label for="id_username_ro">Usuario</label>
+                <input type="text" id="id_username_ro" value="{{ user.username }}" disabled>
+            </div>
+            <div class="campo">
+                <label for="id_first_name">Nombres</label>
+                <input type="text" id="id_first_name" name="first_name" value="{{ user.first_name }}">
+            </div>
+            <div class="campo">
+                <label for="id_last_name">Apellidos</label>
+                <input type="text" id="id_last_name" name="last_name" value="{{ user.last_name }}">
+            </div>
+            <div class="campo">
+                <label for="id_email">Correo electrónico</label>
+                <input type="email" id="id_email" name="email" value="{{ user.email }}">
+            </div>
+            <button type="submit" class="btn-guardar">Guardar datos</button>
+        </form>
+    </div>
+
+    <div class="cuenta-tarjeta">
+        <h2>Cambiar contraseña</h2>
+        {% if ok_clave %}<div class="aviso-ok">Tu contraseña se cambió correctamente.</div>{% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="clave">
+            <div class="campo">
+                <label for="{{ clave_form.old_password.id_for_label }}">Contraseña actual</label>
+                {{ clave_form.old_password }}
+                {% for error in clave_form.old_password.errors %}<div class="error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="campo">
+                <label for="{{ clave_form.new_password1.id_for_label }}">Contraseña nueva</label>
+                {{ clave_form.new_password1 }}
+                {% for error in clave_form.new_password1.errors %}<div class="error">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="campo">
+                <label for="{{ clave_form.new_password2.id_for_label }}">Confirmar contraseña nueva</label>
+                {{ clave_form.new_password2 }}
+                {% for error in clave_form.new_password2.errors %}<div class="error">{{ error }}</div>{% endfor %}
+            </div>
+            <button type="submit" class="btn-guardar">Cambiar contraseña</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

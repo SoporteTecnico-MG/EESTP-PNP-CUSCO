@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
 
@@ -362,3 +363,34 @@ class Feriado(models.Model):
 
     def __str__(self):
         return f"{self.fecha} — {self.descripcion}"
+
+
+class RegistroActividad(models.Model):
+    """Bitácora de acciones sensibles hechas por usuarios del sistema
+    (login/logout, correcciones de asistencia, sincronizaciones manuales,
+    cambios de horario). Solo visible para el administrador general
+    (superusuario) desde el admin."""
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="actividades"
+    )
+    fecha_hora = models.DateTimeField(auto_now_add=True, db_index=True)
+    accion = models.CharField(max_length=100)
+    detalle = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        verbose_name = "Registro de Actividad"
+        verbose_name_plural = "Registro de Actividad"
+        ordering = ["-fecha_hora"]
+
+    def __str__(self):
+        return f"{self.usuario} — {self.accion} — {self.fecha_hora:%d/%m/%Y %H:%M}"
+
+
+def registrar_actividad(request, accion, detalle=""):
+    """Guarda una fila en la bitácora. `request` puede ser None (ej. señales
+    de login donde a veces no hay request explícito en el handler)."""
+    usuario = getattr(request, "user", None)
+    if usuario is not None and not usuario.is_authenticated:
+        usuario = None
+    RegistroActividad.objects.create(usuario=usuario, accion=accion, detalle=detalle)
