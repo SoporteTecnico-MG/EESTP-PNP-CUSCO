@@ -1,29 +1,218 @@
 {% extends "asistencia/base_publico.html" %}
+{% load static %}
 {% block titulo %}Iniciar sesión — EESTP PNP CUSCO{% endblock %}
+{% block extra_head %}
+<style>
+    .login-wrap {
+        max-width: 900px;
+        margin: 2.5rem auto;
+        border-radius: 1.1rem;
+        overflow: hidden;
+        box-shadow: 0 16px 40px rgba(13, 59, 46, .2);
+        display: grid;
+        grid-template-columns: 1.05fr 1fr;
+        background: #fff;
+        min-height: 480px;
+    }
+    .login-panel {
+        position: relative;
+        background: linear-gradient(150deg, var(--verde-oscuro) 0%, var(--verde) 55%, var(--verde-claro) 100%);
+        color: #fdfaf0;
+        padding: 3rem 2.6rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1.15rem;
+        overflow: hidden;
+    }
+    /* Patrón decorativo de arcos, como la referencia, en tono dorado tenue */
+    .login-panel::before {
+        content: "";
+        position: absolute;
+        top: -30%;
+        right: -35%;
+        width: 480px;
+        height: 480px;
+        border-radius: 50%;
+        border: 1px solid rgba(201, 162, 39, .35);
+        box-shadow:
+            0 0 0 40px rgba(201, 162, 39, .08),
+            0 0 0 90px rgba(201, 162, 39, .05),
+            0 0 0 150px rgba(201, 162, 39, .03);
+    }
+    .login-panel > * { position: relative; z-index: 1; }
+    .login-panel .logos-login {
+        display: flex;
+        align-items: center;
+        gap: .6rem;
+        margin-bottom: .4rem;
+    }
+    .login-panel .logos-login img {
+        height: 44px;
+        width: auto;
+        display: block;
+    }
+    .login-panel h1 {
+        font-size: 1.9rem;
+        font-weight: 800;
+        margin: 0;
+        line-height: 1.2;
+        letter-spacing: -.01em;
+    }
+    .login-panel h1 span { color: var(--dorado-claro); }
+    .login-panel p {
+        font-size: .9rem;
+        opacity: .85;
+        line-height: 1.55;
+        margin: 0;
+        max-width: 30ch;
+    }
+    .login-form {
+        padding: 3rem 2.8rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+    .login-form .marca-form {
+        font-size: .78rem;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--dorado);
+        margin-bottom: 1.6rem;
+    }
+    .login-form h2 {
+        margin: 0 0 .35rem;
+        color: var(--verde-oscuro);
+        font-size: 1.55rem;
+        font-weight: 800;
+    }
+    .login-form .subtitulo {
+        font-size: .84rem;
+        color: #7a8981;
+        margin-bottom: 1.8rem;
+    }
+    .campo { margin-bottom: 1.4rem; }
+    .campo label {
+        display: block;
+        font-size: .74rem;
+        font-weight: 600;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        margin-bottom: .4rem;
+        color: #8a9791;
+    }
+    /* Estilo "subrayado" minimalista, sin caja, como la referencia */
+    .campo input {
+        width: 100%;
+        border: none;
+        border-bottom: 1.5px solid #d7d2bf;
+        outline: none;
+        background: transparent;
+        padding: .5rem .1rem;
+        font-size: .98rem;
+        color: var(--texto);
+        transition: border-color .15s;
+    }
+    .campo input:focus { border-bottom-color: var(--verde); }
+    .btn-entrar {
+        width: 100%;
+        background: var(--verde-oscuro);
+        color: #fff;
+        font-weight: 700;
+        letter-spacing: .02em;
+        padding: .8rem;
+        border: none;
+        border-radius: .5rem;
+        font-size: .95rem;
+        cursor: pointer;
+        margin-top: .4rem;
+        transition: background .15s, transform .12s;
+    }
+    .btn-entrar:hover { background: var(--verde); transform: translateY(-1px); }
+    .btn-entrar:active { transform: translateY(0); }
+    .error-login {
+        background: #fde2e2;
+        border: 1px solid #e08a8a;
+        color: #7a1f1f;
+        padding: .6rem .8rem;
+        border-radius: .4rem;
+        margin-bottom: 1.2rem;
+        font-size: .84rem;
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+    }
+    @media (max-width: 660px) {
+        .login-wrap { grid-template-columns: 1fr; margin: 1rem; min-height: 0; }
+        .login-panel { padding: 2rem 1.7rem; }
+        .login-form { padding: 2rem 1.7rem; }
+    }
+
+    .olvide {
+        text-align: center;
+        margin-top: 1rem;
+        font-size: .82rem;
+        color: #7a8981;
+    }
+    .toggle-clave {
+        position: relative;
+    }
+    .toggle-clave button {
+        position: absolute;
+        right: 0;
+        top: 0;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: .78rem;
+        color: var(--verde);
+        padding: .5rem .1rem;
+    }
+</style>
+{% endblock %}
 {% block contenido %}
-<div style="max-width:380px; margin:2rem auto; background:#fff; border-radius:.6rem; padding:2rem; border-top:4px solid var(--dorado)">
-    <h2 style="margin-top:0; color:var(--verde-oscuro); text-align:center">Iniciar sesión</h2>
-    {% if form.errors %}
-    <div style="background:#fde2e2; border:1px solid #e08a8a; color:#7a1f1f; padding:.6rem .8rem; border-radius:.35rem; margin-bottom:1rem; font-size:.85rem">
-        Usuario o contraseña incorrectos.
+<div class="login-wrap">
+    <div class="login-panel">
+        <div class="logos-login">
+            <img src="{% static 'asistencia/img/logo_direddoc.png' %}" alt="Logo DIRÉDDOC PNP">
+            <img src="{% static 'asistencia/img/logo_eestp.png' %}" alt="Logo EESTP PNP CUSCO">
+        </div>
+        <h1>Hola,<br><span>EESTP PNP CUSCO</span> 👋</h1>
+        <p>Sistema institucional de la escuela: asistencia docente, horarios, aula virtual y demás áreas académicas y administrativas, todo en un solo lugar.</p>
     </div>
-    {% endif %}
-    <form method="post">
-        {% csrf_token %}
-        <div style="margin-bottom:1rem">
-            <label style="display:block; font-size:.85rem; margin-bottom:.3rem; color:#4a5750">Usuario</label>
-            <input type="text" name="username" required autofocus
-                   style="width:100%; padding:.55rem .7rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.95rem">
-        </div>
-        <div style="margin-bottom:1.25rem">
-            <label style="display:block; font-size:.85rem; margin-bottom:.3rem; color:#4a5750">Contraseña</label>
-            <input type="password" name="password" required
-                   style="width:100%; padding:.55rem .7rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.95rem">
-        </div>
-        <input type="hidden" name="next" value="{{ next }}">
-        <button type="submit" style="width:100%; background:var(--verde-oscuro); color:#fff; font-weight:700; padding:.65rem; border:none; border-radius:.35rem; font-size:.95rem; cursor:pointer">
-            Entrar
-        </button>
-    </form>
+    <div class="login-form">
+        <div class="marca-form">Sistema Institucional</div>
+        <h2>Bienvenido de nuevo</h2>
+        <div class="subtitulo">Ingresa con tu usuario institucional.</div>
+        {% if form.errors %}
+        <div class="error-login">⚠️ Usuario o contraseña incorrectos.</div>
+        {% endif %}
+        <form method="post">
+            {% csrf_token %}
+            <div class="campo">
+                <label for="id_username">Usuario</label>
+                <input type="text" id="id_username" name="username" required autofocus autocomplete="username">
+            </div>
+            <div class="campo toggle-clave">
+                <label for="id_password">Contraseña</label>
+                <input type="password" id="id_password" name="password" required autocomplete="current-password">
+                <button type="button" id="btn-ver-clave" aria-label="Mostrar contraseña">Ver</button>
+            </div>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn-entrar">Entrar</button>
+        </form>
+        <div class="olvide">¿Olvidaste tu contraseña? Contacta al Área Académica de la EESTP PNP CUSCO para restablecerla.</div>
+    </div>
 </div>
+<script>
+(function () {
+    document.getElementById("btn-ver-clave").addEventListener("click", function () {
+        var campo = document.getElementById("id_password");
+        var mostrando = campo.type === "text";
+        campo.type = mostrando ? "password" : "text";
+        this.textContent = mostrando ? "Ver" : "Ocultar";
+    });
+})();
+</script>
 {% endblock %}

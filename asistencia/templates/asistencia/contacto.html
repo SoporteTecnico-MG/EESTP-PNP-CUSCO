@@ -1,0 +1,23 @@
+{% extends "asistencia/base_publico.html" %}
+{% block titulo %}Contacto — EESTP PNP CUSCO{% endblock %}
+{% block contenido %}
+<div class="migas"><a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo; Contacto</div>
+
+<section class="franja">
+    <h2>Visítanos</h2>
+    <div class="franja-contacto">
+        <div>
+            <p>
+                Si deseas más información sobre admisión, programas de formación o trámites administrativos,
+                comunícate con el Área Académica de la EESTP PNP CUSCO.
+            </p>
+        </div>
+        <div class="datos-contacto">
+            <strong>EESTP PNP CUSCO</strong>
+            <div>Cusco, Perú</div>
+            <div>Área Académica</div>
+            <div>Dirección de Educación y Doctrina — PNP</div>
+        </div>
+    </div>
+</section>
+{% endblock %}

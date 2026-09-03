@@ -1,13 +1,27 @@
+from urllib.parse import urlencode
+
 from django import forms
 from django.contrib import admin
+from django.shortcuts import redirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from . import models
 from . import views as asistencia_views
 
-admin.site.site_header = "EESTP PNP CUSCO — Control Docentes"
-admin.site.site_title = "Control Docentes"
+admin.site.site_header = "EESTP PNP CUSCO — Sistema Institucional"
+admin.site.site_title = "Sistema Institucional"
 admin.site.index_title = "Panel de administración"
+
+
+def _login_unificado(request, extra_context=None):
+    """El admin de Django trae su propia pantalla de login (/admin/login/),
+    aparte de la pública que ya diseñamos (/login/) — esto la reemplaza para
+    que todo el sistema use una sola pantalla de inicio de sesión."""
+    next_url = request.GET.get("next") or reverse("admin:index")
+    return redirect(f"{reverse('asistencia:login')}?{urlencode({'next': next_url})}")
+
+
+admin.site.login = _login_unificado
 
 _admin_index = admin.site.index
 
@@ -30,6 +44,8 @@ def _index_con_estadisticas(request, extra_context=None):
             "stat_requieren_revision": models.AsistenciaResuelta.objects.filter(
                 requiere_revision=True
             ).count(),
+            "mensaje": request.GET.get("msg"),
+            "error": request.GET.get("error"),
         }
     )
     return _admin_index(request, extra_context)
@@ -76,6 +92,11 @@ def _get_urls():
             "cuadro-inasistencia/",
             admin.site.admin_view(asistencia_views.cuadro_inasistencia),
             name="cuadro_inasistencia",
+        ),
+        path(
+            "sincronizar-biometrico/",
+            admin.site.admin_view(asistencia_views.sincronizar_biometrico_vista),
+            name="sincronizar_biometrico",
         ),
     ]
     return custom + _admin_get_urls()

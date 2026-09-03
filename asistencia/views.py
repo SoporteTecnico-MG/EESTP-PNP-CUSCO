@@ -57,13 +57,28 @@ def home(request):
     return render(request, "asistencia/home.html")
 
 
+def nosotros(request):
+    """Página pública aparte: reseña histórica, misión/visión y formación académica."""
+    return render(request, "asistencia/nosotros.html")
+
+
+def convocatorias(request):
+    """Página pública aparte: avisos y convocatorias institucionales."""
+    return render(request, "asistencia/convocatorias.html")
+
+
+def contacto(request):
+    """Página pública aparte: cómo comunicarse con la escuela."""
+    return render(request, "asistencia/contacto.html")
+
+
 @login_required
 def post_login_redirect(request):
     """Después de iniciar sesión, cada rol va a lo suyo: administradores al control
     total (admin/Control Docentes), docentes y estudiantes al Aula Virtual."""
     user = request.user
     if user.is_staff or user.is_superuser:
-        return redirect("/admin/")
+        return redirect("admin:index")
     if user.groups.filter(name="Docentes").exists():
         return redirect("asistencia:aula_virtual")
     if user.groups.filter(name="Estudiantes").exists():
@@ -363,6 +378,57 @@ def asignar_horario(request):
                     aula=aula, oferta_curso=oferta, defaults={"docente_id": docente_id}
                 )
                 mensaje = f"Docente asignado en {aula.codigo} para {oferta.curso.nombre}."
+
+        elif accion == "guardar_docentes_curso" and request.POST.get("quitar"):
+            # Se apretó el botón "×" de una fila puntual dentro del formulario
+            # del curso — mismo comportamiento que "quitar_docente".
+            asignacion_id = request.POST.get("quitar")
+            aulas_grupo_ids = _aulas_del_grupo(promocion, especialidad).values_list("id", flat=True)
+            try:
+                borrados, _ = Asignacion.objects.filter(pk=asignacion_id, aula_id__in=aulas_grupo_ids).delete()
+                if borrados:
+                    mensaje = "Docente quitado de esa aula."
+                else:
+                    error = "No se pudo quitar — esa asignación ya no existe o no pertenece a este grupo."
+            except ProtectedError:
+                error = (
+                    "No se puede quitar: esta aula ya tiene asistencias registradas con este "
+                    "docente. Para cambiarlo usa el selector y el botón ↻ (reemplaza al docente "
+                    "sin borrar el historial)."
+                )
+
+        elif accion == "guardar_docentes_curso":
+            # Un solo formulario por curso: el botón "fila" indica si se guarda
+            # una sola aula (su id) o todo el curso de una vez ("todas").
+            oferta_id = request.POST.get("oferta_curso")
+            oferta = _ofertas_disponibles(periodo, especialidad).filter(pk=oferta_id).first()
+            fila = request.POST.get("fila")
+            if not oferta or not fila:
+                error = "Faltan datos para guardar el curso."
+            else:
+                aulas_grupo = list(_aulas_del_grupo(promocion, especialidad))
+                if fila == "todas":
+                    aulas_a_guardar = aulas_grupo
+                else:
+                    aulas_a_guardar = [a for a in aulas_grupo if str(a.id) == fila]
+
+                guardadas = 0
+                for aula in aulas_a_guardar:
+                    docente_id = request.POST.get(f"docente_aula_{aula.id}")
+                    if docente_id:
+                        Asignacion.objects.update_or_create(
+                            aula=aula, oferta_curso=oferta, defaults={"docente_id": docente_id}
+                        )
+                        guardadas += 1
+
+                if guardadas:
+                    mensaje = (
+                        f"{guardadas} aula(s) guardada(s) para {oferta.curso.nombre}."
+                        if fila == "todas"
+                        else f"Docente guardado en {oferta.curso.nombre}."
+                    )
+                else:
+                    error = "No había ningún docente seleccionado para guardar."
 
         elif accion == "quitar_docente":
             asignacion_id = request.POST.get("asignacion_id")
@@ -783,6 +849,7 @@ def corregir_asistencia(request, pk):
     nuevo_estado = request.POST.get("estado")
     if nuevo_estado in AsistenciaResuelta.Estado.values:
         ar.estado = nuevo_estado
+        ar.corregido_manualmente = True
 
     ar.requiere_revision = request.POST.get("requiere_revision") == "on"
     ar.save()
@@ -807,7 +874,9 @@ def corregir_asistencia_lote(request):
         elif accion == "cambiar_estado":
             estado_lote = request.POST.get("estado_lote")
             if estado_lote in AsistenciaResuelta.Estado.values:
-                registros.update(estado=estado_lote, requiere_revision=False)
+                registros.update(
+                    estado=estado_lote, requiere_revision=False, corregido_manualmente=True
+                )
 
     return redirect(_url_de_vuelta(request))
 
@@ -1145,3 +1214,18 @@ def cuadro_inasistencia(request):
             "grupos_ordenados": grupos_ordenados,
         },
     )
+
+
+@login_required
+def sincronizar_biometrico_vista(request):
+    """Botón del panel: hace exactamente lo mismo que el comando
+    'sync_biometrico' de consola — solo descarga marcaciones nuevas del
+    equipo, no cierra ningún día ni calcula estados."""
+    if request.method != "POST":
+        return redirect("admin:index")
+
+    from .biometrico import sincronizar_biometrico
+
+    resultado = sincronizar_biometrico()
+    params = f"msg={quote(resultado['mensaje'])}" if resultado["ok"] else f"error={quote(resultado['mensaje'])}"
+    return redirect(f"{reverse('admin:index')}?{params}")

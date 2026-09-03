@@ -33,6 +33,7 @@ from .models import (
 
 TOLERANCIA_MINUTOS = getattr(settings, "TOLERANCIA_TARDANZA_MINUTOS", 20)
 DESCUENTO_TARDANZA_MINUTOS = getattr(settings, "DESCUENTO_TARDANZA_MINUTOS", 15)
+BRECHA_MAXIMA_ENTRE_BLOQUES_MINUTOS = getattr(settings, "BRECHA_MAXIMA_ENTRE_BLOQUES_MINUTOS", 120)
 RECUPERACION_HASTA = time(22, 0)
 
 
@@ -153,6 +154,29 @@ def procesar_marcaciones_pendientes():
         fecha = timezone.localtime(marcacion.timestamp).date()
         por_docente_fecha.setdefault((docente.id, fecha), docente)
 
+    # Bloques "huérfanos": un docente puede tener dos cursos el mismo día (a
+    # veces de promociones distintas) — si uno de esos bloques se programó
+    # DESPUÉS de que las marcas de ese día ya se hubieran repartido a otro
+    # bloque, sus marcas ya no aparecen como "pendientes" y ese segundo
+    # bloque se queda en Falta aunque el docente sí marcó. Se detectan estos
+    # casos y se vuelven a procesar con todas las marcas reales del día.
+    huerfanos = AsistenciaResuelta.objects.filter(
+        estado=AsistenciaResuelta.Estado.FALTA,
+        asignacion__isnull=False,
+        marcacion_entrada__isnull=True,
+    ).values_list("docente_id", "fecha").distinct()
+    for docente_id, fecha in huerfanos:
+        if (docente_id, fecha) in por_docente_fecha:
+            continue
+        docente = Docente.objects.filter(id=docente_id).first()
+        if docente is None:
+            continue
+        tiene_marcas = MarcacionBiometrica.objects.filter(
+            id_biometrico=docente.id_biometrico, timestamp__date=fecha
+        ).exists()
+        if tiene_marcas:
+            por_docente_fecha[(docente_id, fecha)] = docente
+
     for (docente_id, fecha), docente in por_docente_fecha.items():
         pares = _bloques_del_dia(docente, fecha)
 
@@ -204,7 +228,26 @@ def procesar_marcaciones_pendientes():
         primera = todas_las_marcas[0]
         ultima = todas_las_marcas[-1]
 
+        brecha_maxima = timedelta(minutes=BRECHA_MAXIMA_ENTRE_BLOQUES_MINUTOS)
+
         for bloque, asignacion in pares:
+            # La entrada/salida del día solo se le aplica a un bloque si la
+            # brecha hasta la marca real es razonable (ej. un curso a las
+            # 12:05 tras marcar entrada a las 08:14 sí cuenta — la brecha es
+            # corta). Si el bloque queda muy separado de toda marca del día
+            # (ej. un curso de tarde cuando el docente solo marcó en la
+            # mañana y no volvió en horas), no se le presta la marca de otro
+            # curso: se deja sin marcar, para que salga Falta y no un falso
+            # Puntual.
+            inicio_dt = _dt_aware(fecha, bloque.hora_pedagogica_inicio.hora_inicio)
+            fin_dt = _dt_aware(fecha, bloque.hora_pedagogica_fin.hora_fin)
+            dentro_del_rango = (
+                inicio_dt <= ultima.timestamp + brecha_maxima
+                and fin_dt >= primera.timestamp - brecha_maxima
+            )
+            if not dentro_del_rango:
+                continue
+
             ar, _ = AsistenciaResuelta.objects.get_or_create(
                 docente=docente,
                 asignacion=asignacion,
@@ -301,6 +344,10 @@ def cerrar_dia(fecha):
 
         if ar.estado == AsistenciaResuelta.Estado.AMBIGUO:
             resumen["ambiguo"] += 1
+            continue
+
+        if ar.corregido_manualmente:
+            resumen[ar.estado] += 1
             continue
 
         tiene_entrada = ar.marcacion_entrada_id is not None

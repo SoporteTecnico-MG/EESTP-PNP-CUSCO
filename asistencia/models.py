@@ -325,6 +325,12 @@ class AsistenciaResuelta(models.Model):
         "No se descuenta solo — queda para que jefatura decida.",
     )
     requiere_revision = models.BooleanField(default=False)
+    corregido_manualmente = models.BooleanField(
+        default=False,
+        help_text="Jefatura ajustó el estado a mano desde el reporte. Mientras esté "
+        "activo, cerrar_dia ya no recalcula este registro automáticamente (así una "
+        "resincronización o un cierre tardío no borra la corrección).",
+    )
 
     class Meta:
         verbose_name = "Asistencia Resuelta"

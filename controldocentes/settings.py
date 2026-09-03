@@ -118,6 +118,13 @@ TOLERANCIA_TARDANZA_MINUTOS = config('TOLERANCIA_TARDANZA_MINUTOS', default=20, 
 # que solo clasifica el estado como Puntual/Tardanza).
 DESCUENTO_TARDANZA_MINUTOS = config('DESCUENTO_TARDANZA_MINUTOS', default=15, cast=int)
 
+# Cuando un docente tiene más de un bloque el mismo día (a veces de otra
+# promoción), la entrada/salida del día se comparte entre bloques SOLO si la
+# brecha hasta la marca real no supera esto — así una marca de la mañana no
+# valida un curso de la tarde separado por varias horas sin ninguna marca
+# cerca.
+BRECHA_MAXIMA_ENTRE_BLOQUES_MINUTOS = config('BRECHA_MAXIMA_ENTRE_BLOQUES_MINUTOS', default=120, cast=int)
+
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/despues-login/'
 LOGOUT_REDIRECT_URL = '/'

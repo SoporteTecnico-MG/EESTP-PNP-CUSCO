@@ -7,6 +7,19 @@
 </style>
 
 <div class="ed-dashboard">
+    {% if mensaje %}<div class="aviso-ok">{{ mensaje }}</div>{% endif %}
+    {% if error %}<div class="aviso-error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{% url 'admin:sincronizar_biometrico' %}" style="margin-bottom:1rem">
+        {% csrf_token %}
+        <button type="submit" class="btn-mini btn-mini-primary" style="width:auto;padding:.5rem 1.1rem">
+            🔄 Sincronizar biométrico ahora
+        </button>
+        <span style="font-size:.78rem;color:#666;margin-left:.5rem">
+            Descarga las marcaciones nuevas del equipo. No cierra el día ni calcula asistencia — eso se hace aparte.
+        </span>
+    </form>
+
     <div class="ed-stats">
         <div class="ed-stat">
             <div class="num">{{ stat_docentes }}</div>

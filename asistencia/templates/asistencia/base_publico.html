@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -24,36 +25,51 @@
         header.top {
             background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
             color: #fff;
-            padding: 1rem 1.5rem;
+            padding: .85rem 1.5rem;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 3px solid var(--dorado);
+            gap: 1rem;
+            flex-wrap: wrap;
         }
         .marca {
             display: flex;
             align-items: center;
-            gap: .75rem;
+            gap: .9rem;
         }
-        .escudo-placeholder {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            border: 2px solid var(--dorado);
+        .logos-institucionales {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: .65rem;
-            text-align: center;
-            color: var(--dorado-claro);
-            flex-shrink: 0;
+            gap: .7rem;
         }
-        .marca-texto strong { display: block; font-size: 1.05rem; letter-spacing: .02em; }
-        .marca-texto span { display: block; font-size: .72rem; opacity: .8; }
+        .logos-institucionales img {
+            display: block;
+            flex-shrink: 0;
+            height: 72px;
+            width: auto;
+        }
+        .marca-texto strong { display: block; font-size: 1.5rem; letter-spacing: .02em; }
+        .marca-texto span { display: block; font-size: .92rem; opacity: .8; }
+        nav.nav-principal {
+            display: flex;
+            align-items: center;
+            gap: 1.3rem;
+            font-size: .88rem;
+        }
+        nav.nav-principal a {
+            color: #fdfaf0;
+            text-decoration: none;
+            opacity: .9;
+        }
+        nav.nav-principal a:hover { opacity: 1; text-decoration: underline; }
         .acceso {
             display: flex;
             align-items: center;
             gap: .75rem;
+        }
+        @media (max-width: 820px) {
+            nav.nav-principal { display: none; }
         }
         .btn-dorado {
             background: var(--dorado);
@@ -69,12 +85,115 @@
             font-size: .82rem;
             opacity: .9;
         }
-        main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+        main { max-width: 1400px; margin: 0 auto; padding: 2rem 2rem 3rem; }
+        @media (min-width: 1700px) {
+            main { max-width: 1700px; }
+        }
         footer {
             text-align: center;
             padding: 1.2rem;
             font-size: .78rem;
             color: #6b7a72;
+        }
+
+        /* Migas de página (páginas institucionales aparte de Inicio) */
+        .migas {
+            font-size: .84rem;
+            color: #6b7a72;
+            margin-bottom: 1.5rem;
+        }
+        .migas a { color: var(--verde); text-decoration: none; }
+        .migas a:hover { text-decoration: underline; }
+
+        /* Franjas de contenido institucional, reutilizadas en varias páginas */
+        section.franja { margin-bottom: 2.6rem; scroll-margin-top: 1.5rem; }
+        section.franja h2 {
+            color: var(--verde-oscuro);
+            border-bottom: 2px solid var(--dorado);
+            padding-bottom: .35rem;
+            display: inline-block;
+            font-size: 1.3rem;
+            margin: 0 0 1rem;
+        }
+        .resumen-institucional {
+            display: grid;
+            grid-template-columns: 1fr 1.3fr;
+            gap: 1.8rem;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #e3ddc9;
+            border-radius: .6rem;
+            padding: 1.8rem;
+        }
+        .resumen-institucional .cristal {
+            background: linear-gradient(150deg, var(--verde-oscuro), var(--verde));
+            border-radius: .5rem;
+            min-height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--dorado-claro);
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-align: center;
+            padding: 1rem;
+        }
+        .resumen-institucional p { color: #4d5a53; line-height: 1.65; margin: 0 0 .8rem; }
+        .resumen-institucional p:last-child { margin-bottom: 0; }
+
+        .franja-descubre {
+            background: var(--crema);
+            border: 1px dashed var(--dorado);
+            border-radius: .6rem;
+            padding: 1.6rem 1.8rem;
+            text-align: center;
+        }
+        .franja-descubre p { color: #4d5a53; max-width: 42rem; margin: 0 auto; }
+
+        .grid-accesos {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 1.1rem;
+        }
+        .card-acceso {
+            background: #fff;
+            border-radius: .5rem;
+            padding: 1.5rem;
+            border-top: 4px solid var(--verde);
+            text-decoration: none;
+            display: block;
+            transition: box-shadow .15s, transform .12s;
+            color: inherit;
+        }
+        .card-acceso:hover { box-shadow: 0 4px 16px rgba(13,59,46,.15); transform: translateY(-2px); }
+        .card-acceso.dorado { border-top-color: var(--dorado); }
+        .card-acceso h3 { margin: 0 0 .4rem; color: var(--verde-oscuro); font-size: 1.02rem; }
+        .card-acceso p { color: #6b7a72; font-size: .87rem; margin: 0; }
+
+        .franja-contacto {
+            display: grid;
+            grid-template-columns: 1.3fr 1fr;
+            gap: 1.8rem;
+            background: #fff;
+            border: 1px solid #e3ddc9;
+            border-radius: .6rem;
+            padding: 1.8rem;
+            align-items: center;
+        }
+        .franja-contacto p { color: #4d5a53; line-height: 1.6; }
+        .datos-contacto {
+            background: var(--crema);
+            border-radius: .5rem;
+            padding: 1.3rem 1.4rem;
+            font-size: .88rem;
+            color: var(--texto);
+        }
+        .datos-contacto strong { display: block; color: var(--verde-oscuro); margin-bottom: .3rem; }
+        .datos-contacto div { margin-bottom: .6rem; }
+        .datos-contacto div:last-child { margin-bottom: 0; }
+
+        @media (max-width: 720px) {
+            .resumen-institucional, .franja-contacto { grid-template-columns: 1fr; }
         }
     </style>
     {% block extra_head %}{% endblock %}
@@ -82,12 +201,20 @@
 <body>
     <header class="top">
         <div class="marca">
-            <div class="escudo-placeholder">ESCUDO<br>PNP</div>
+            <div class="logos-institucionales">
+                <img src="{% static 'asistencia/img/logo_eestp.png' %}" alt="Logo EESTP PNP CUSCO">
+            </div>
             <div class="marca-texto">
                 <strong>EESTP PNP CUSCO</strong>
                 <span>Escuela de Educación Superior Técnico Profesional</span>
             </div>
         </div>
+        <nav class="nav-principal">
+            <a href="{% url 'asistencia:home' %}">Inicio</a>
+            <a href="{% url 'asistencia:nosotros' %}">Nosotros</a>
+            <a href="{% url 'asistencia:convocatorias' %}">Convocatorias</a>
+            <a href="{% url 'asistencia:contacto' %}">Contacto</a>
+        </nav>
         <div class="acceso">
             {% if user.is_authenticated %}
                 <span class="usuario-chip">{{ user.get_full_name|default:user.username }}</span>
@@ -103,6 +230,6 @@
     <main>
         {% block contenido %}{% endblock %}
     </main>
-    <footer>EESTP PNP CUSCO — Sistema de Control Docente y Aula Virtual</footer>
+    <footer>EESTP PNP CUSCO — Sistema Institucional</footer>
 </body>
 </html>

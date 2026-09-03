@@ -7,7 +7,7 @@
 </div>
 {% endblock %}
 {% block content %}
-<div class="pagina-centrada">
+<div class="pagina-ancha">
 <h1>Armar Horario</h1>
 <p>El horario de un curso se programa <strong>una sola vez por período</strong> — es el mismo para todas las aulas de este grupo. Clic en un cuadro vacío para fijar un día (o agregar otro día al mismo curso, ej. martes y jueves). El docente de cada aula se asigna aparte, desde la ficha del docente.</p>
 
@@ -79,61 +79,34 @@
                     {% if celda.tipo == "inicio" %}
                     <td rowspan="{{ celda.rowspan }}" class="celda-curso" style="background-color: {{ celda.color }}">
                         <div class="curso-nombre">{{ celda.oferta.curso.nombre }}</div>
-                        <details open>
-                            <summary>{{ celda.filas_aula|length }} aula(s) del grupo</summary>
-                            {% for fa in celda.filas_aula %}
-                            <div class="docente-info" style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">
-                                <strong style="min-width:2.4rem;font-size:.8rem">{{ fa.aula.codigo }}</strong>
-                                {% if fa.asignacion %}
-                                <div style="flex:1">
-                                    <div class="docente-grado-nombre">{{ fa.asignacion.docente.grado }} {{ fa.asignacion.docente.apellidos_nombres }}</div>
-                                    {% if fa.asignacion.docente.celular %}<div class="docente-celular">{{ fa.asignacion.docente.celular }}</div>{% endif %}
-                                </div>
-                                <form method="post" style="margin:0;display:flex;gap:.2rem;flex:1;max-width:11rem">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
-                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
-                                    <input type="hidden" name="accion" value="asignar_docente">
-                                    <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
-                                    <input type="hidden" name="aula_id" value="{{ fa.aula.id }}">
-                                    <select name="docente" required style="flex:1" title="Cambiar docente">
-                                        {% for d in docentes %}
-                                        <option value="{{ d.id }}" {% if d.id == fa.asignacion.docente_id %}selected{% endif %}>{{ d.apellidos_nombres }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto" title="Cambiar docente">↻</button>
-                                </form>
-                                <form method="post" style="margin:0" title="Quitar docente de esta aula">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
-                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
-                                    <input type="hidden" name="accion" value="quitar_docente">
-                                    <input type="hidden" name="asignacion_id" value="{{ fa.asignacion.id }}">
-                                    <button type="submit" class="btn-mini btn-mini-danger" style="padding:0 .3rem">×</button>
-                                </form>
-                                {% else %}
-                                <form method="post" style="margin:0;display:flex;gap:.2rem;flex:1">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="promocion" value="{{ promocion.id }}">
-                                    <input type="hidden" name="periodo" value="{{ periodo.id }}">
-                                    {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
-                                    <input type="hidden" name="accion" value="asignar_docente">
-                                    <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
-                                    <input type="hidden" name="aula_id" value="{{ fa.aula.id }}">
-                                    <select name="docente" required style="flex:1">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="promocion" value="{{ promocion.id }}">
+                            <input type="hidden" name="periodo" value="{{ periodo.id }}">
+                            {% if especialidad %}<input type="hidden" name="especialidad" value="{{ especialidad.id }}">{% endif %}
+                            <input type="hidden" name="accion" value="guardar_docentes_curso">
+                            <input type="hidden" name="oferta_curso" value="{{ celda.oferta.id }}">
+                            <details open>
+                                <summary>{{ celda.filas_aula|length }} aula(s) del grupo</summary>
+                                {% for fa in celda.filas_aula %}
+                                <div class="docente-info" style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem">
+                                    <strong style="min-width:2.4rem;font-size:.8rem">{{ fa.aula.codigo }}</strong>
+                                    <select name="docente_aula_{{ fa.aula.id }}" style="flex:1" title="Docente de esta aula">
                                         <option value="">sin asignar...</option>
                                         {% for d in docentes %}
-                                        <option value="{{ d.id }}">{{ d.apellidos_nombres }}</option>
+                                        <option value="{{ d.id }}" {% if fa.asignacion and d.id == fa.asignacion.docente_id %}selected{% endif %}>{{ d.apellidos_nombres }}</option>
                                         {% endfor %}
                                     </select>
-                                    <button type="submit" class="btn-mini btn-mini-primary" style="width:auto">OK</button>
-                                </form>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </details>
+                                    <button type="submit" name="fila" value="{{ fa.aula.id }}" class="btn-mini btn-mini-primary" style="width:auto" title="Guardar solo esta aula">↻</button>
+                                    {% if fa.asignacion %}
+                                    <button type="submit" name="quitar" value="{{ fa.asignacion.id }}" formnovalidate class="btn-mini btn-mini-danger" style="padding:0 .3rem" title="Quitar docente de esta aula">×</button>
+                                    {% endif %}
+                                </div>
+                                {% if fa.asignacion.docente.celular %}<div class="docente-celular" style="margin-left:2.8rem">{{ fa.asignacion.docente.celular }}</div>{% endif %}
+                                {% endfor %}
+                            </details>
+                            <button type="submit" name="fila" value="todas" class="btn-mini btn-mini-primary" style="margin-top:.4rem">💾 Guardar todo el curso</button>
+                        </form>
                         <form method="post" style="margin-top:.3rem">
                             {% csrf_token %}
                             <input type="hidden" name="promocion" value="{{ promocion.id }}">
