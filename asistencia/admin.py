@@ -8,25 +8,45 @@ from django.utils.html import format_html
 from . import models
 from . import views as asistencia_views
 
+# El panel de /admin/ mezclaba dos procesos que no tienen nada que ver entre
+# sí (control de asistencia de docentes ya contratados, y calificación de
+# postulantes para contratar nuevos) bajo una sola URL y un solo menú. Ahora
+# son dos AdminSite aparte, cada uno con su propia URL, título y dashboard —
+# /admin/ queda como un pequeño "hub" que solo enlaza a los dos sectores.
+control_docentes_site = admin.AdminSite(name="controldocentes")
+proceso_docente_site = admin.AdminSite(name="procesodocente")
+
 admin.site.site_header = "EESTP PNP CUSCO — Sistema Institucional"
 admin.site.site_title = "Sistema Institucional"
-admin.site.index_title = "Panel de administración"
+admin.site.index_title = "Elige un sector"
+admin.site.index_template = "admin/hub_index.html"
+
+control_docentes_site.site_header = "EESTP PNP CUSCO — Control Docentes"
+control_docentes_site.site_title = "Control Docentes"
+control_docentes_site.index_title = "Panel de Control Docentes"
+
+proceso_docente_site.site_header = "EESTP PNP CUSCO — Proceso Docente"
+proceso_docente_site.site_title = "Proceso Docente"
+proceso_docente_site.index_title = "Calificación y selección de postulantes"
 
 
 def _login_unificado(request, extra_context=None):
     """El admin de Django trae su propia pantalla de login (/admin/login/),
     aparte de la pública que ya diseñamos (/login/) — esto la reemplaza para
-    que todo el sistema use una sola pantalla de inicio de sesión."""
+    que todo el sistema (los 3 sitios de admin) use una sola pantalla de
+    inicio de sesión."""
     next_url = request.GET.get("next") or reverse("admin:index")
     return redirect(f"{reverse('asistencia:login')}?{urlencode({'next': next_url})}")
 
 
 admin.site.login = _login_unificado
+control_docentes_site.login = _login_unificado
+proceso_docente_site.login = _login_unificado
 
-_admin_get_app_list = admin.site.get_app_list
+_control_docentes_get_app_list = control_docentes_site.get_app_list
 
 
-_SECCIONES_ASISTENCIA = [
+_SECCIONES_CONTROL_DOCENTES = [
     ("control-docentes", "Control Docentes", [
         "Docente", "Promocion", "Especialidad", "Aula", "PeriodoAcademico",
         "Curso", "OfertaCurso", "HoraPedagogica", "Asignacion", "BloqueHorario",
@@ -35,22 +55,19 @@ _SECCIONES_ASISTENCIA = [
     ("asistencia-biometrica", "Asistencia Biométrica", [
         "MarcacionBiometrica", "AsistenciaResuelta",
     ]),
-    ("convocatorias", "Convocatorias", [
-        "Postulante",
-    ]),
     ("registro-actividad", "Registro de Actividad", [
         "RegistroActividad",
     ]),
 ]
 
 
-def _get_app_list(request, app_label=None):
-    """El panel mezclaba TODO (docentes, horarios, marcaciones, postulantes,
-    bitácora) en una sola lista alfabética dentro de "Asistencia" — son
-    procesos distintos con audiencias distintas (Registro de Actividad es
-    solo del administrador general), así que se separan en secciones
-    propias del panel en vez de una sola bolsa revuelta."""
-    app_list = _admin_get_app_list(request, app_label)
+def _get_app_list_control_docentes(request, app_label=None):
+    """El panel mezclaba TODO (docentes, horarios, marcaciones, bitácora) en
+    una sola lista alfabética dentro de "Asistencia" — son procesos
+    distintos con audiencias distintas (Registro de Actividad es solo del
+    administrador general), así que se separan en secciones propias del
+    panel en vez de una sola bolsa revuelta."""
+    app_list = _control_docentes_get_app_list(request, app_label)
     if app_label is not None:
         return app_list
 
@@ -60,7 +77,7 @@ def _get_app_list(request, app_label=None):
 
     modelos_por_nombre = {m["object_name"]: m for m in asistencia_app["models"]}
     secciones_nuevas = []
-    for slug, nombre, nombres_modelo in _SECCIONES_ASISTENCIA:
+    for slug, nombre, nombres_modelo in _SECCIONES_CONTROL_DOCENTES:
         modelos_seccion = [
             modelos_por_nombre.pop(nombre_modelo)
             for nombre_modelo in nombres_modelo
@@ -85,12 +102,12 @@ def _get_app_list(request, app_label=None):
     return app_list[:indice] + secciones_nuevas + app_list[indice + 1:]
 
 
-admin.site.get_app_list = _get_app_list
+control_docentes_site.get_app_list = _get_app_list_control_docentes
 
-_admin_index = admin.site.index
+_control_docentes_index = control_docentes_site.index
 
 
-def _index_con_estadisticas(request, extra_context=None):
+def _index_control_docentes(request, extra_context=None):
     from django.utils import timezone
 
     extra_context = extra_context or {}
@@ -112,64 +129,133 @@ def _index_con_estadisticas(request, extra_context=None):
             "error": request.GET.get("error"),
         }
     )
-    return _admin_index(request, extra_context)
+    return _control_docentes_index(request, extra_context)
 
 
-admin.site.index = _index_con_estadisticas
+control_docentes_site.index = _index_control_docentes
+control_docentes_site.index_template = "admin/controldocentes_index.html"
 
-_admin_get_urls = admin.site.get_urls
+_proceso_docente_index = proceso_docente_site.index
+
+
+def _index_proceso_docente(request, extra_context=None):
+    extra_context = extra_context or {}
+    postulantes = models.Postulante.objects.all()
+    extra_context.update(
+        {
+            "stat_postulantes": postulantes.count(),
+            "stat_convocatorias": postulantes.values("convocatoria").distinct().count(),
+            "stat_ganadores": sum(1 for p in postulantes if p.resultado().startswith("GANADOR")),
+            "stat_vinculados": postulantes.filter(docente__isnull=False).count(),
+        }
+    )
+    return _proceso_docente_index(request, extra_context)
+
+
+proceso_docente_site.index = _index_proceso_docente
+proceso_docente_site.index_template = "admin/procesodocente_index.html"
+
+_proceso_docente_get_app_list = proceso_docente_site.get_app_list
+
+_SECCIONES_PROCESO_DOCENTE = [
+    ("convocatorias", "Convocatorias", ["Postulante"]),
+    ("consulta-docentes", "Consulta de Docentes", ["Docente"]),
+]
+
+
+def _get_app_list_proceso_docente(request, app_label=None):
+    """Postulante y Docente quedan bajo la misma app de Python ('asistencia'),
+    así que sin esto Django los mostraría juntos como una sola sección
+    "Asistencia" — se separan para que quede claro que Docente aquí es solo
+    de consulta (para vincular), no el catálogo principal."""
+    app_list = _proceso_docente_get_app_list(request, app_label)
+    if app_label is not None:
+        return app_list
+
+    asistencia_app = next((a for a in app_list if a["app_label"] == "asistencia"), None)
+    if asistencia_app is None:
+        return app_list
+
+    modelos_por_nombre = {m["object_name"]: m for m in asistencia_app["models"]}
+    secciones_nuevas = []
+    for slug, nombre, nombres_modelo in _SECCIONES_PROCESO_DOCENTE:
+        modelos_seccion = [
+            modelos_por_nombre.pop(nombre_modelo)
+            for nombre_modelo in nombres_modelo
+            if nombre_modelo in modelos_por_nombre
+        ]
+        if modelos_seccion:
+            secciones_nuevas.append({
+                "name": nombre,
+                "app_label": slug,
+                "app_url": asistencia_app["app_url"],
+                "has_module_perms": asistencia_app["has_module_perms"],
+                "models": modelos_seccion,
+            })
+
+    indice = app_list.index(asistencia_app)
+    sobrantes = list(modelos_por_nombre.values())
+    if sobrantes:
+        asistencia_app["models"] = sobrantes
+        return app_list[:indice + 1] + secciones_nuevas + app_list[indice + 1:]
+    return app_list[:indice] + secciones_nuevas + app_list[indice + 1:]
+
+
+proceso_docente_site.get_app_list = _get_app_list_proceso_docente
+
+_control_docentes_get_urls = control_docentes_site.get_urls
 
 
 def _get_urls():
     custom = [
         path(
             "armar-horario/",
-            admin.site.admin_view(asistencia_views.asignar_horario),
+            control_docentes_site.admin_view(asistencia_views.asignar_horario),
             name="armar_horario",
         ),
         path(
             "ver-horario/",
-            admin.site.admin_view(asistencia_views.ver_horario),
+            control_docentes_site.admin_view(asistencia_views.ver_horario),
             name="ver_horario",
         ),
         path(
             "reporte-asistencia/",
-            admin.site.admin_view(asistencia_views.reporte_asistencia),
+            control_docentes_site.admin_view(asistencia_views.reporte_asistencia),
             name="reporte_asistencia",
         ),
         path(
             "corregir-asistencia/<int:pk>/",
-            admin.site.admin_view(asistencia_views.corregir_asistencia),
+            control_docentes_site.admin_view(asistencia_views.corregir_asistencia),
             name="corregir_asistencia",
         ),
         path(
             "corregir-asistencia-lote/",
-            admin.site.admin_view(asistencia_views.corregir_asistencia_lote),
+            control_docentes_site.admin_view(asistencia_views.corregir_asistencia_lote),
             name="corregir_asistencia_lote",
         ),
         path(
             "calendario-asistencia/",
-            admin.site.admin_view(asistencia_views.calendario_asistencia),
+            control_docentes_site.admin_view(asistencia_views.calendario_asistencia),
             name="calendario_asistencia",
         ),
         path(
             "cuadro-inasistencia/",
-            admin.site.admin_view(asistencia_views.cuadro_inasistencia),
+            control_docentes_site.admin_view(asistencia_views.cuadro_inasistencia),
             name="cuadro_inasistencia",
         ),
         path(
             "sincronizar-biometrico/",
-            admin.site.admin_view(asistencia_views.sincronizar_biometrico_vista),
+            control_docentes_site.admin_view(asistencia_views.sincronizar_biometrico_vista),
             name="sincronizar_biometrico",
         ),
     ]
-    return custom + _admin_get_urls()
+    return custom + _control_docentes_get_urls()
 
 
-admin.site.get_urls = _get_urls
+control_docentes_site.get_urls = _get_urls
 
 
-@admin.register(models.Especialidad)
+@admin.register(models.Especialidad, site=control_docentes_site)
 class EspecialidadAdmin(admin.ModelAdmin):
     list_display = ("nombre",)
     search_fields = ("nombre",)
@@ -253,7 +339,7 @@ class AsignacionInline(admin.StackedInline):
     fields = ("promocion_filtro", "periodo_filtro", "aula", "oferta_curso")
 
 
-@admin.register(models.Docente)
+@admin.register(models.Docente, site=control_docentes_site)
 class DocenteAdmin(admin.ModelAdmin):
     list_display = ("dni", "apellidos_nombres", "grado", "celular", "id_biometrico", "estado")
     list_filter = ("estado", "grado")
@@ -262,7 +348,15 @@ class DocenteAdmin(admin.ModelAdmin):
     inlines = [AsignacionInline]
 
 
-@admin.register(models.Promocion)
+# El autocomplete_fields="docente" de PostulanteAdmin (sitio Proceso Docente)
+# necesita que Docente esté registrado también en ESE sitio — si no, Django
+# rechaza el arranque (E039: no se puede autocompletar contra un modelo que
+# no está en el mismo AdminSite). Sirve además para que, desde Proceso
+# Docente, se pueda revisar el registro de un Docente sin cruzar de sitio.
+proceso_docente_site.register(models.Docente, DocenteAdmin)
+
+
+@admin.register(models.Promocion, site=control_docentes_site)
 class PromocionAdmin(admin.ModelAdmin):
     list_display = ("nombre", "anio_ingreso", "fecha_inicio_formacion", "estado")
     list_filter = ("estado", "anio_ingreso")
@@ -270,7 +364,7 @@ class PromocionAdmin(admin.ModelAdmin):
     ordering = ("-anio_ingreso", "nombre")
 
 
-@admin.register(models.Aula)
+@admin.register(models.Aula, site=control_docentes_site)
 class AulaAdmin(admin.ModelAdmin):
     list_display = ("codigo", "promocion", "especialidad")
     list_filter = ("promocion", "especialidad")
@@ -278,7 +372,7 @@ class AulaAdmin(admin.ModelAdmin):
     ordering = ("promocion", "numero")
 
 
-@admin.register(models.PeriodoAcademico)
+@admin.register(models.PeriodoAcademico, site=control_docentes_site)
 class PeriodoAcademicoAdmin(admin.ModelAdmin):
     list_display = ("promocion", "numero_periodo", "nombre", "fecha_inicio", "fecha_fin", "estado", "usa_sabado")
     list_editable = ("usa_sabado",)
@@ -286,7 +380,7 @@ class PeriodoAcademicoAdmin(admin.ModelAdmin):
     ordering = ("promocion", "numero_periodo")
 
 
-@admin.register(models.Curso)
+@admin.register(models.Curso, site=control_docentes_site)
 class CursoAdmin(admin.ModelAdmin):
     list_display = ("nombre", "especialidad")
     list_filter = ("especialidad",)
@@ -319,7 +413,7 @@ class BloqueHorarioInline(admin.TabularInline):
     asignado_a.short_description = "Aula: Docente"
 
 
-@admin.register(models.OfertaCurso)
+@admin.register(models.OfertaCurso, site=control_docentes_site)
 class OfertaCursoAdmin(admin.ModelAdmin):
     list_display = ("periodo_academico", "curso", "horas_pedagogicas")
     list_filter = ("periodo_academico",)
@@ -328,13 +422,13 @@ class OfertaCursoAdmin(admin.ModelAdmin):
     inlines = [BloqueHorarioInline]
 
 
-@admin.register(models.HoraPedagogica)
+@admin.register(models.HoraPedagogica, site=control_docentes_site)
 class HoraPedagogicaAdmin(admin.ModelAdmin):
     list_display = ("numero_bloque", "hora_inicio", "hora_fin", "tipo")
     ordering = ("numero_bloque",)
 
 
-@admin.register(models.Asignacion)
+@admin.register(models.Asignacion, site=control_docentes_site)
 class AsignacionAdmin(admin.ModelAdmin):
     list_display = ("aula", "oferta_curso", "docente", "horas_pedagogicas_totales")
     list_filter = ("aula__promocion", "aula", "docente")
@@ -351,7 +445,7 @@ class AsignacionAdmin(admin.ModelAdmin):
     def enlace_ver_horario(self, obj):
         if not obj.pk:
             return "Guarda la asignación primero."
-        url = f"{reverse('admin:ver_horario')}?promocion={obj.aula.promocion_id}&aula={obj.aula_id}"
+        url = f"{reverse('controldocentes:ver_horario')}?promocion={obj.aula.promocion_id}&aula={obj.aula_id}"
         return format_html(
             '<a class="button" href="{}" style="background:#1d5a43;color:#fff;padding:.4rem .8rem;'
             'border-radius:.3rem;text-decoration:none;display:inline-block">'
@@ -362,7 +456,7 @@ class AsignacionAdmin(admin.ModelAdmin):
     enlace_ver_horario.short_description = "Horario visual"
 
 
-@admin.register(models.BloqueHorario)
+@admin.register(models.BloqueHorario, site=control_docentes_site)
 class BloqueHorarioAdmin(admin.ModelAdmin):
     """El listado plano de Django no sirve para esto: en vez de mostrarlo, 'Bloques
     de Horario' lleva directo a la grilla de Armar Horario — ahí es donde se fija
@@ -377,7 +471,7 @@ class BloqueHorarioAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         from django.shortcuts import redirect
 
-        return redirect(reverse("admin:armar_horario"))
+        return redirect(reverse("controldocentes:armar_horario"))
 
     def asignado_a(self, obj):
         return _asignaciones_texto(obj.oferta_curso)
@@ -385,7 +479,7 @@ class BloqueHorarioAdmin(admin.ModelAdmin):
     asignado_a.short_description = "Aula: Docente"
 
 
-@admin.register(models.MarcacionBiometrica)
+@admin.register(models.MarcacionBiometrica, site=control_docentes_site)
 class MarcacionBiometricaAdmin(admin.ModelAdmin):
     list_display = ("id_biometrico", "timestamp", "tipo", "origen_dispositivo", "importado_en")
     list_filter = ("tipo", "origen_dispositivo")
@@ -394,7 +488,7 @@ class MarcacionBiometricaAdmin(admin.ModelAdmin):
     date_hierarchy = "timestamp"
 
 
-@admin.register(models.AsistenciaResuelta)
+@admin.register(models.AsistenciaResuelta, site=control_docentes_site)
 class AsistenciaResueltaAdmin(admin.ModelAdmin):
     """Editable y creable a mano (para cuando el biométrico falló, o para
     corregir un caso puntual) — no tiene readonly_fields a propósito."""
@@ -417,7 +511,7 @@ class AsistenciaResueltaAdmin(admin.ModelAdmin):
     autocomplete_fields = ("docente", "asignacion", "marcacion_entrada", "marcacion_salida")
 
 
-@admin.register(models.Feriado)
+@admin.register(models.Feriado, site=control_docentes_site)
 class FeriadoAdmin(admin.ModelAdmin):
     """Feriados nacionales y suspensiones por disposición superior. El motor de
     resolución (cerrar_dia) salta por completo estas fechas — no genera Falta."""
@@ -436,7 +530,7 @@ class FeriadoAdmin(admin.ModelAdmin):
         self.message_user(request, f"Se eliminaron {borrados} registro(s) de asistencia de esas fechas.")
 
 
-@admin.register(models.RegistroActividad)
+@admin.register(models.RegistroActividad, site=control_docentes_site)
 class RegistroActividadAdmin(admin.ModelAdmin):
     """Bitácora de acciones del sistema (login/logout, correcciones,
     sincronizaciones manuales). Solo el administrador general (superusuario)
@@ -464,7 +558,7 @@ class RegistroActividadAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(models.Postulante)
+@admin.register(models.Postulante, site=proceso_docente_site)
 class PostulanteAdmin(admin.ModelAdmin):
     """Calificación de postulantes a la docencia, según el Manual del
     Personal Docente de la ENFPP PNP (Anexos 10 a 13) — un campo por cada

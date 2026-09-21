@@ -849,7 +849,7 @@ def _url_de_vuelta(request):
         return volver_url
 
     volver_qs = request.POST.get("volver_qs", "")
-    url = reverse("admin:reporte_asistencia")
+    url = reverse("controldocentes:reporte_asistencia")
     if volver_qs:
         url = f"{url}?{volver_qs}"
     return url
@@ -861,7 +861,7 @@ def corregir_asistencia(request, pk):
     (sin salir a otra pantalla): permite ajustar hora de entrada/salida y el
     estado final, y marcar el caso como resuelto."""
     if request.method != "POST":
-        return redirect("admin:reporte_asistencia")
+        return redirect("controldocentes:reporte_asistencia")
 
     ar = get_object_or_404(AsistenciaResuelta, pk=pk)
 
@@ -910,7 +910,7 @@ def corregir_asistencia_lote(request):
     """Aplica una acción a varias filas 'por revisar' del reporte a la vez —
     para no tener que abrir el formulario de una en una cuando hay muchas."""
     if request.method != "POST":
-        return redirect("admin:reporte_asistencia")
+        return redirect("controldocentes:reporte_asistencia")
 
     ids = request.POST.getlist("seleccion")
     accion = request.POST.get("accion_lote")
@@ -1276,11 +1276,11 @@ def sincronizar_biometrico_vista(request):
     'sync_biometrico' de consola — solo descarga marcaciones nuevas del
     equipo, no cierra ningún día ni calcula estados."""
     if request.method != "POST":
-        return redirect("admin:index")
+        return redirect("controldocentes:index")
 
     from .biometrico import sincronizar_biometrico
 
     resultado = sincronizar_biometrico()
     registrar_actividad(request, "Sincronización manual del biométrico", detalle=resultado["mensaje"])
     params = f"msg={quote(resultado['mensaje'])}" if resultado["ok"] else f"error={quote(resultado['mensaje'])}"
-    return redirect(f"{reverse('admin:index')}?{params}")
+    return redirect(f"{reverse('controldocentes:index')}?{params}")

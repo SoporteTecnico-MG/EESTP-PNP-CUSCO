@@ -83,7 +83,7 @@
     </p>
     <div class="acciones-hero">
         {% if user.is_authenticated and user.is_staff %}
-            <a href="{% url 'admin:index' %}" class="btn-hero primario">Ir al panel</a>
+            <a href="{% url 'controldocentes:index' %}" class="btn-hero primario">Ir al panel</a>
         {% else %}
             <a href="{% url 'asistencia:login' %}" class="btn-hero primario">Iniciar sesión</a>
         {% endif %}
@@ -96,7 +96,7 @@
     <h2>Accesos rápidos</h2>
     <div class="grid-accesos">
         {% if user.is_authenticated and user.is_staff %}
-        <a href="{% url 'admin:calendario_asistencia' %}" class="card-acceso">
+        <a href="{% url 'controldocentes:calendario_asistencia' %}" class="card-acceso">
             <h3>Control Docentes →</h3>
             <p>Asistencia biométrica, horarios y gestión académica del personal docente.</p>
         </a>

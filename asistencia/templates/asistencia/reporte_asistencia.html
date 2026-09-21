@@ -2,7 +2,7 @@
 {% block title %}Reporte de Asistencia{% endblock %}
 {% block breadcrumbs %}
 <div class="breadcrumbs">
-    <a href="{% url 'admin:index' %}">Inicio</a>
+    <a href="{% url 'controldocentes:index' %}">Inicio</a>
     &rsaquo; Reporte de Asistencia
 </div>
 {% endblock %}
@@ -10,7 +10,7 @@
 <div class="pagina-centrada">
 <div class="no-imprimir">
 <h1>Reporte de Asistencia</h1>
-<p>Separado por promoción y período — para cada docente muestra registro de entrada, salida y observaciones (tardanza, descuentos, casos por revisar). También puedes probar la <a href="{% url 'admin:calendario_asistencia' %}">vista de calendario día por día (beta)</a>, o generar el <a href="{% url 'admin:cuadro_inasistencia' %}">Cuadro de Inasistencia</a> (formato oficial, separado por PNP/PNP (r)/civiles).</p>
+<p>Separado por promoción y período — para cada docente muestra registro de entrada, salida y observaciones (tardanza, descuentos, casos por revisar). También puedes probar la <a href="{% url 'controldocentes:calendario_asistencia' %}">vista de calendario día por día (beta)</a>, o generar el <a href="{% url 'controldocentes:cuadro_inasistencia' %}">Cuadro de Inasistencia</a> (formato oficial, separado por PNP/PNP (r)/civiles).</p>
 
 <form method="get" class="filtros-horario">
     <select name="promocion" onchange="location.href='?promocion='+this.value">
@@ -104,7 +104,7 @@
     .barra-lote select { font-size:.8rem; padding:.2rem .3rem; }
 </style>
 
-<form id="form-lote" method="post" action="{% url 'admin:corregir_asistencia_lote' %}" class="no-imprimir barra-lote">
+<form id="form-lote" method="post" action="{% url 'controldocentes:corregir_asistencia_lote' %}" class="no-imprimir barra-lote">
     {% csrf_token %}
     <input type="hidden" name="volver_qs" value="{{ volver_qs }}">
     <strong id="contador-lote">0 seleccionadas</strong>
@@ -197,7 +197,7 @@
                 {% if f.registro.requiere_revision or f.registro.estado == "FALTA" %}
                 <details class="no-imprimir corregir-inline">
                     <summary>✎ Corregir</summary>
-                    <form method="post" action="{% url 'admin:corregir_asistencia' f.registro.id %}">
+                    <form method="post" action="{% url 'controldocentes:corregir_asistencia' f.registro.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="volver_qs" value="{{ volver_qs }}">
                         <label>Entrada

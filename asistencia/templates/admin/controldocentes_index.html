@@ -4,13 +4,26 @@
     .ed-dashboard { margin-bottom: 1.75rem; }
     .ed-accesos { display:flex; gap:1rem; flex-wrap:wrap; }
     .ed-card { flex:1; min-width:280px; border-radius:.6rem; padding:1.25rem; position:relative; }
+    .ed-sectores { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.1rem; font-size:.82rem; }
+    .ed-sectores a, .ed-sectores span {
+        padding:.35rem .8rem; border-radius:1rem; text-decoration:none; font-weight:600;
+    }
+    .ed-sectores span.activo { background:var(--secondary); color:#fff; }
+    .ed-sectores a { background:#fff; color:var(--secondary); border:1px solid var(--hairline-color); }
+    .ed-sectores a:hover { background:var(--darkened-bg); }
 </style>
+
+<div class="ed-sectores">
+    <span class="activo">📋 Control Docentes</span>
+    <a href="{% url 'procesodocente:index' %}">🧑‍🏫 Proceso Docente</a>
+    <a href="{% url 'admin:index' %}">🏠 Inicio del sistema</a>
+</div>
 
 <div class="ed-dashboard">
     {% if mensaje %}<div class="aviso-ok">{{ mensaje }}</div>{% endif %}
     {% if error %}<div class="aviso-error">{{ error }}</div>{% endif %}
 
-    <form method="post" action="{% url 'admin:sincronizar_biometrico' %}" style="margin-bottom:1rem">
+    <form method="post" action="{% url 'controldocentes:sincronizar_biometrico' %}" style="margin-bottom:1rem">
         {% csrf_token %}
         <button type="submit" class="btn-mini btn-mini-primary" style="width:auto;padding:.5rem 1.1rem">
             🔄 Sincronizar biométrico ahora
@@ -54,11 +67,11 @@
                 Asistencia biométrica, horarios, docentes, promociones y períodos.
             </div>
             <div style="display:flex;gap:.6rem;flex-wrap:wrap">
-                <a href="{% url 'admin:armar_horario' %}" style="background:#c9a227;color:#0d3b2e;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:700">Armar Horario</a>
-                <a href="{% url 'admin:ver_horario' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Ver Horario</a>
-                <a href="{% url 'admin:reporte_asistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Reporte de Asistencia</a>
-                <a href="{% url 'admin:calendario_asistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Calendario (beta)</a>
-                <a href="{% url 'admin:cuadro_inasistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Cuadro de Inasistencia</a>
+                <a href="{% url 'controldocentes:armar_horario' %}" style="background:#c9a227;color:#0d3b2e;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:700">Armar Horario</a>
+                <a href="{% url 'controldocentes:ver_horario' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Ver Horario</a>
+                <a href="{% url 'controldocentes:reporte_asistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Reporte de Asistencia</a>
+                <a href="{% url 'controldocentes:calendario_asistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Calendario (beta)</a>
+                <a href="{% url 'controldocentes:cuadro_inasistencia' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Cuadro de Inasistencia</a>
             </div>
         </div>
         <div class="ed-card" style="background:#e9ecef;color:#495057;">

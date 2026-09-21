@@ -1,4 +1,6 @@
 {% extends "admin/base.html" %}
+{% load i18n %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
 {% block extrastyle %}
 {{ block.super }}
 <style>
@@ -180,7 +182,11 @@
     #changelist table tbody tr:hover { background: var(--selected-bg) !important; }
     #content { padding: 1.25rem 1.5rem; }
     #content-main { padding-right: .5rem; }
-    .dashboard #content { padding-top: 1.5rem; }
+    /* Django trae por defecto ".dashboard #content { width: 600px; }" —
+       pensado para su panel simple de solo enlaces. Nuestro dashboard tiene
+       tarjetas de estadísticas y accesos que necesitan todo el ancho de la
+       ventana, así que se anula ese límite. */
+    .dashboard #content { padding-top: 1.5rem; width: auto; max-width: none; }
 
     /* Mismo esquema si el sistema está en modo oscuro (si no, Django lo pisa con su propia paleta). */
     @media (prefers-color-scheme: dark) {

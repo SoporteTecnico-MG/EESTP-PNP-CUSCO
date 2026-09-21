@@ -1,0 +1,43 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<style>
+    .hub-dashboard { margin-bottom: 1.75rem; }
+    .hub-accesos { display:flex; gap:1.1rem; flex-wrap:wrap; }
+    .hub-card {
+        flex:1; min-width:280px; border-radius:.6rem; padding:1.5rem;
+        text-decoration:none; display:block; transition: box-shadow .15s, transform .12s;
+        position:relative;
+    }
+    .hub-card:hover { box-shadow:0 4px 16px rgba(13,59,46,.18); transform:translateY(-2px); }
+    .hub-card h2 { margin:0 0 .4rem; font-size:1.2rem; }
+    .hub-card p { margin:0; font-size:.85rem; opacity:.9; }
+    .hub-card.desactivada { cursor:default; }
+    .hub-card.desactivada:hover { box-shadow:none; transform:none; }
+    .hub-tag {
+        position:absolute; top:.9rem; right:.9rem; background:rgba(255,255,255,.25);
+        font-size:.66rem; padding:.15rem .55rem; border-radius:1rem;
+        text-transform:uppercase; letter-spacing:.04em; font-weight:700;
+    }
+</style>
+
+<div class="hub-dashboard">
+    <p style="color:var(--body-quiet-color); font-size:.9rem; margin-bottom:1.2rem;">
+        Este panel agrupa procesos distintos de la escuela — entra al sector que necesites.
+    </p>
+    <div class="hub-accesos">
+        <a class="hub-card" href="{% url 'controldocentes:index' %}"
+           style="background:linear-gradient(135deg, #0d3b2e, #16543f); color:#fff;">
+            <span class="hub-tag">Uso diario</span>
+            <h2>📋 Control Docentes</h2>
+            <p>Asistencia biométrica, horarios, docentes, promociones y períodos académicos.</p>
+        </a>
+        <a class="hub-card" href="{% url 'procesodocente:index' %}"
+           style="background:linear-gradient(135deg, #a9821f, #c9a227); color:#0d3b2e;">
+            <span class="hub-tag" style="background:rgba(13,59,46,.15)">Selección de personal</span>
+            <h2>🧑‍🏫 Proceso Docente</h2>
+            <p>Calificación de postulantes a la docencia (Anexos 10 a 13) y su ingreso como Docente.</p>
+        </a>
+    </div>
+</div>
+{{ block.super }}
+{% endblock %}

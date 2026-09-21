@@ -1,0 +1,52 @@
+{% extends "admin/index.html" %}
+{% block content %}
+<style>
+    .ed-dashboard { margin-bottom: 1.75rem; }
+    .ed-sectores { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.1rem; font-size:.82rem; }
+    .ed-sectores a, .ed-sectores span {
+        padding:.35rem .8rem; border-radius:1rem; text-decoration:none; font-weight:600;
+    }
+    .ed-sectores span.activo { background:var(--secondary); color:#fff; }
+    .ed-sectores a { background:#fff; color:var(--secondary); border:1px solid var(--hairline-color); }
+    .ed-sectores a:hover { background:var(--darkened-bg); }
+    .pd-nota {
+        background:#fff; border-left:4px solid var(--accent); border-radius:.5rem;
+        padding:1rem 1.25rem; font-size:.85rem; color:var(--body-quiet-color); margin-bottom:1.5rem;
+    }
+</style>
+
+<div class="ed-sectores">
+    <a href="{% url 'controldocentes:index' %}">📋 Control Docentes</a>
+    <span class="activo">🧑‍🏫 Proceso Docente</span>
+    <a href="{% url 'admin:index' %}">🏠 Inicio del sistema</a>
+</div>
+
+<div class="ed-dashboard">
+    <div class="pd-nota">
+        Calificación de postulantes a la docencia, según el Manual del Personal Docente de la
+        ENFPP PNP (Anexos 10 a 13). Es un proceso aparte del control de asistencia de quienes ya
+        están contratados — solo cuando un postulante <strong>gana</strong> el concurso pasa a
+        formar parte de "Docentes" en Control Docentes.
+    </div>
+
+    <div class="ed-stats">
+        <div class="ed-stat">
+            <div class="num">{{ stat_postulantes }}</div>
+            <div class="lbl">Postulantes registrados</div>
+        </div>
+        <div class="ed-stat">
+            <div class="num">{{ stat_convocatorias }}</div>
+            <div class="lbl">Convocatorias distintas</div>
+        </div>
+        <div class="ed-stat alerta">
+            <div class="num">{{ stat_ganadores }}</div>
+            <div class="lbl">Ganadores (potenciales)</div>
+        </div>
+        <div class="ed-stat">
+            <div class="num">{{ stat_vinculados }}</div>
+            <div class="lbl">Ya vinculados a Docente</div>
+        </div>
+    </div>
+</div>
+{{ block.super }}
+{% endblock %}
