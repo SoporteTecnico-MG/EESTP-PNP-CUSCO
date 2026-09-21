@@ -26,11 +26,30 @@ admin.site.login = _login_unificado
 _admin_get_app_list = admin.site.get_app_list
 
 
+_SECCIONES_ASISTENCIA = [
+    ("control-docentes", "Control Docentes", [
+        "Docente", "Promocion", "Especialidad", "Aula", "PeriodoAcademico",
+        "Curso", "OfertaCurso", "HoraPedagogica", "Asignacion", "BloqueHorario",
+        "Feriado",
+    ]),
+    ("asistencia-biometrica", "Asistencia Biométrica", [
+        "MarcacionBiometrica", "AsistenciaResuelta",
+    ]),
+    ("convocatorias", "Convocatorias", [
+        "Postulante",
+    ]),
+    ("registro-actividad", "Registro de Actividad", [
+        "RegistroActividad",
+    ]),
+]
+
+
 def _get_app_list(request, app_label=None):
-    """La calificación de postulantes (Anexos 10-13) es un proceso aparte
-    del control de asistencia de docentes ya contratados — se muestra en su
-    propia sección "Convocatorias" del panel en vez de mezclarse con los
-    modelos de Asistencia."""
+    """El panel mezclaba TODO (docentes, horarios, marcaciones, postulantes,
+    bitácora) en una sola lista alfabética dentro de "Asistencia" — son
+    procesos distintos con audiencias distintas (Registro de Actividad es
+    solo del administrador general), así que se separan en secciones
+    propias del panel en vez de una sola bolsa revuelta."""
     app_list = _admin_get_app_list(request, app_label)
     if app_label is not None:
         return app_list
@@ -39,26 +58,31 @@ def _get_app_list(request, app_label=None):
     if asistencia_app is None:
         return app_list
 
-    modelo_postulante, resto = None, []
-    for modelo in asistencia_app["models"]:
-        if modelo["object_name"] == "Postulante":
-            modelo_postulante = modelo
-        else:
-            resto.append(modelo)
+    modelos_por_nombre = {m["object_name"]: m for m in asistencia_app["models"]}
+    secciones_nuevas = []
+    for slug, nombre, nombres_modelo in _SECCIONES_ASISTENCIA:
+        modelos_seccion = [
+            modelos_por_nombre.pop(nombre_modelo)
+            for nombre_modelo in nombres_modelo
+            if nombre_modelo in modelos_por_nombre
+        ]
+        if modelos_seccion:
+            secciones_nuevas.append({
+                "name": nombre,
+                "app_label": slug,
+                "app_url": asistencia_app["app_url"],
+                "has_module_perms": asistencia_app["has_module_perms"],
+                "models": modelos_seccion,
+            })
 
-    if modelo_postulante is None:
-        return app_list
-
-    asistencia_app["models"] = resto
-    convocatorias_app = {
-        "name": "Convocatorias",
-        "app_label": "convocatorias",
-        "app_url": asistencia_app["app_url"],
-        "has_module_perms": asistencia_app["has_module_perms"],
-        "models": [modelo_postulante],
-    }
+    # Cualquier modelo nuevo que no esté todavía en la lista de arriba se
+    # queda visible en "Asistencia" en vez de desaparecer silenciosamente.
     indice = app_list.index(asistencia_app)
-    return app_list[:indice + 1] + [convocatorias_app] + app_list[indice + 1:]
+    sobrantes = list(modelos_por_nombre.values())
+    if sobrantes:
+        asistencia_app["models"] = sobrantes
+        return app_list[:indice + 1] + secciones_nuevas + app_list[indice + 1:]
+    return app_list[:indice] + secciones_nuevas + app_list[indice + 1:]
 
 
 admin.site.get_app_list = _get_app_list
