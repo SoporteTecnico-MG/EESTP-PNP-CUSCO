@@ -23,6 +23,46 @@ def _login_unificado(request, extra_context=None):
 
 admin.site.login = _login_unificado
 
+_admin_get_app_list = admin.site.get_app_list
+
+
+def _get_app_list(request, app_label=None):
+    """La calificación de postulantes (Anexos 10-13) es un proceso aparte
+    del control de asistencia de docentes ya contratados — se muestra en su
+    propia sección "Convocatorias" del panel en vez de mezclarse con los
+    modelos de Asistencia."""
+    app_list = _admin_get_app_list(request, app_label)
+    if app_label is not None:
+        return app_list
+
+    asistencia_app = next((a for a in app_list if a["app_label"] == "asistencia"), None)
+    if asistencia_app is None:
+        return app_list
+
+    modelo_postulante, resto = None, []
+    for modelo in asistencia_app["models"]:
+        if modelo["object_name"] == "Postulante":
+            modelo_postulante = modelo
+        else:
+            resto.append(modelo)
+
+    if modelo_postulante is None:
+        return app_list
+
+    asistencia_app["models"] = resto
+    convocatorias_app = {
+        "name": "Convocatorias",
+        "app_label": "convocatorias",
+        "app_url": asistencia_app["app_url"],
+        "has_module_perms": asistencia_app["has_module_perms"],
+        "models": [modelo_postulante],
+    }
+    indice = app_list.index(asistencia_app)
+    return app_list[:indice + 1] + [convocatorias_app] + app_list[indice + 1:]
+
+
+admin.site.get_app_list = _get_app_list
+
 _admin_index = admin.site.index
 
 
@@ -417,10 +457,13 @@ class PostulanteAdmin(admin.ModelAdmin):
         "col_entrevista",
         "col_puntaje_total",
         "col_resultado",
+        "docente",
     )
     list_filter = ("convocatoria", "escuela", "procedencia", "tabla_curricular")
     search_fields = ("apellidos_nombres", "dni_cip", "unidad_didactica")
     ordering = ("convocatoria", "unidad_didactica", "apellidos_nombres")
+    autocomplete_fields = ("docente",)
+    actions = ["vincular_o_crear_docente_action"]
 
     readonly_fields = (
         "vista_puntaje_grados_titulos",
@@ -439,8 +482,9 @@ class PostulanteAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Datos del postulante (Anexo 06)", {
             "fields": (
-                "apellidos_nombres", "dni_cip", "grado", "procedencia", "escuela",
+                "apellidos_nombres", "dni_cip", "celular", "grado", "procedencia", "escuela",
                 "unidad_didactica", "convocatoria", "fecha_evaluacion", "tabla_curricular",
+                "docente",
             )
         }),
         ("1. Grados académicos y títulos profesionales (máx. 20)", {
@@ -564,3 +608,24 @@ class PostulanteAdmin(admin.ModelAdmin):
     def vista_resultado(self, obj):
         color = "#1c5c33" if obj.resultado().startswith("GANADOR") else "#a83232"
         return format_html('<strong style="font-size:1.2em; color:{}">{}</strong>', color, obj.resultado())
+
+    @admin.action(description="Vincular/crear Docente a partir del postulante (por DNI, nunca por nombre parecido)")
+    def vincular_o_crear_docente_action(self, request, queryset):
+        creados = actualizados = fallidos = 0
+        for postulante in queryset:
+            try:
+                _, creado = postulante.vincular_o_crear_docente()
+                if creado:
+                    creados += 1
+                else:
+                    actualizados += 1
+            except ValueError as exc:
+                fallidos += 1
+                self.message_user(
+                    request, f"{postulante.apellidos_nombres}: {exc}", level="warning"
+                )
+        self.message_user(
+            request,
+            f"Docentes creados: {creados}. Docentes actualizados: {actualizados}. "
+            f"Sin procesar (faltó DNI): {fallidos}.",
+        )

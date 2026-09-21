@@ -424,6 +424,7 @@ class Postulante(models.Model):
     # --- Datos generales (Anexo 06) ---
     apellidos_nombres = models.CharField(max_length=200)
     dni_cip = models.CharField("DNI / CIP", max_length=20, blank=True)
+    celular = models.CharField("Telf. celular", max_length=20, blank=True)
     grado = models.CharField(max_length=100, blank=True, help_text="Grado policial o 'Civil'")
     procedencia = models.CharField(max_length=12, choices=Procedencia.choices, default=Procedencia.CIVIL)
     escuela = models.CharField(max_length=10, choices=Escuela.choices, default=Escuela.EESTP)
@@ -433,6 +434,12 @@ class Postulante(models.Model):
     tabla_curricular = models.CharField(
         max_length=10, choices=TablaCurricular.choices, default=TablaCurricular.ANEXO_10,
         help_text="Según el origen del postulante, define cómo se puntúan grados y títulos (Anexo 10 vs Anexo 13).",
+    )
+    docente = models.ForeignKey(
+        "Docente", on_delete=models.SET_NULL, null=True, blank=True, related_name="postulaciones",
+        help_text="Si esta persona YA existe como Docente en el sistema (por ejemplo, sigue postulando a otro "
+        "curso), selecciónala aquí para no crear un duplicado. Búscala por DNI o nombre completo exacto — "
+        "no la vincules por coincidencia parcial de nombre.",
     )
 
     # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
@@ -640,3 +647,45 @@ class Postulante(models.Model):
         if self.tiene_titulo_profesional or self.tiene_titulo_profesional_tecnico:
             return 1
         return 0
+
+    def vincular_o_crear_docente(self):
+        """Crea el Docente si es nuevo, o actualiza el ya vinculado — sin
+        adivinar por nombre parecido. Si `self.docente` ya está seleccionado
+        a mano, se actualiza ese. Si no, se busca una coincidencia exacta
+        por DNI (identificador fuerte); si tampoco hay, se crea uno nuevo.
+        Devuelve (docente, creado: bool)."""
+        docente = self.docente
+        if docente is None and self.dni_cip:
+            docente = Docente.objects.filter(dni=self.dni_cip).first()
+
+        creado = False
+        if docente is None:
+            if not self.dni_cip:
+                raise ValueError(
+                    "No se puede crear el Docente sin DNI/CIP — complétalo en el postulante primero."
+                )
+            docente = Docente(
+                apellidos_nombres=self.apellidos_nombres,
+                dni=self.dni_cip,
+                id_biometrico=self.dni_cip,
+                grado=self.grado,
+                celular=self.celular,
+                estado=Docente.Estado.ACTIVO,
+                fecha_ingreso=self.fecha_evaluacion,
+            )
+            creado = True
+        else:
+            if not docente.dni and self.dni_cip:
+                docente.dni = self.dni_cip
+            if self.grado:
+                docente.grado = self.grado
+            if self.celular:
+                docente.celular = self.celular
+
+        docente.save()
+
+        if self.docente_id != docente.id:
+            self.docente = docente
+            self.save(update_fields=["docente"])
+
+        return docente, creado
