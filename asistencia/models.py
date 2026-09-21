@@ -653,7 +653,15 @@ class Postulante(models.Model):
         adivinar por nombre parecido. Si `self.docente` ya está seleccionado
         a mano, se actualiza ese. Si no, se busca una coincidencia exacta
         por DNI (identificador fuerte); si tampoco hay, se crea uno nuevo.
-        Devuelve (docente, creado: bool)."""
+        Solo procede si el postulante ya aprobó las 3 etapas y quedó como
+        ganador — mientras siga en evaluación no corresponde darlo de alta
+        como Docente. Devuelve (docente, creado: bool)."""
+        if not self.resultado().startswith("GANADOR"):
+            raise ValueError(
+                "Este postulante todavía no está calificado y aceptado como ganador "
+                f"(resultado actual: {self.resultado()})."
+            )
+
         docente = self.docente
         if docente is None and self.dni_cip:
             docente = Docente.objects.filter(dni=self.dni_cip).first()

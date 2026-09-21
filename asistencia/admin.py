@@ -609,7 +609,7 @@ class PostulanteAdmin(admin.ModelAdmin):
         color = "#1c5c33" if obj.resultado().startswith("GANADOR") else "#a83232"
         return format_html('<strong style="font-size:1.2em; color:{}">{}</strong>', color, obj.resultado())
 
-    @admin.action(description="Vincular/crear Docente a partir del postulante (por DNI, nunca por nombre parecido)")
+    @admin.action(description="Vincular/crear Docente (solo postulantes GANADORES; por DNI, nunca por nombre parecido)")
     def vincular_o_crear_docente_action(self, request, queryset):
         creados = actualizados = fallidos = 0
         for postulante in queryset:
@@ -627,5 +627,5 @@ class PostulanteAdmin(admin.ModelAdmin):
         self.message_user(
             request,
             f"Docentes creados: {creados}. Docentes actualizados: {actualizados}. "
-            f"Sin procesar (faltó DNI): {fallidos}.",
+            f"Sin procesar (no es ganador o faltó DNI): {fallidos}.",
         )
