@@ -398,3 +398,169 @@ class RegistroActividadAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(models.Postulante)
+class PostulanteAdmin(admin.ModelAdmin):
+    """Calificación de postulantes a la docencia, según el Manual del
+    Personal Docente de la ENFPP PNP (Anexos 10 a 13) — un campo por cada
+    renglón de las tablas oficiales; el puntaje de cada bloque y el
+    resultado final se calculan solos."""
+
+    list_display = (
+        "apellidos_nombres",
+        "convocatoria",
+        "unidad_didactica",
+        "escuela",
+        "col_curricular",
+        "col_capacidad_docente",
+        "col_entrevista",
+        "col_puntaje_total",
+        "col_resultado",
+    )
+    list_filter = ("convocatoria", "escuela", "procedencia", "tabla_curricular")
+    search_fields = ("apellidos_nombres", "dni_cip", "unidad_didactica")
+    ordering = ("convocatoria", "unidad_didactica", "apellidos_nombres")
+
+    readonly_fields = (
+        "vista_puntaje_grados_titulos",
+        "vista_puntaje_capacitaciones",
+        "vista_puntaje_eventos_investigacion",
+        "vista_puntaje_otros_programas",
+        "vista_puntaje_experiencia_docente",
+        "vista_puntaje_experiencia_profesional",
+        "vista_puntaje_evaluacion_curricular",
+        "vista_puntaje_capacidad_docente",
+        "vista_puntaje_entrevista_personal",
+        "vista_puntaje_total",
+        "vista_resultado",
+    )
+
+    fieldsets = (
+        ("Datos del postulante (Anexo 06)", {
+            "fields": (
+                "apellidos_nombres", "dni_cip", "grado", "procedencia", "escuela",
+                "unidad_didactica", "convocatoria", "fecha_evaluacion", "tabla_curricular",
+            )
+        }),
+        ("1. Grados académicos y títulos profesionales (máx. 20)", {
+            "fields": (
+                "tiene_titulo_profesional", "tiene_titulo_profesional_tecnico",
+                "tiene_maestria", "tiene_doctorado", "tiene_segunda_especialidad",
+                "vista_puntaje_grados_titulos",
+            )
+        }),
+        ("2. Actualizaciones y capacitaciones afines (máx. 3)", {
+            "fields": (
+                "diplomados_120h", "programas_16_96h_afines",
+                "vista_puntaje_capacitaciones",
+            )
+        }),
+        ("3. Participación en eventos científicos e investigación (máx. 3)", {
+            "fields": (
+                "ponente_eventos", "asistente_eventos", "investigaciones", "publicaciones",
+                "vista_puntaje_eventos_investigacion",
+            )
+        }),
+        ("4. Otros programas de formación continua (máx. 4)", {
+            "fields": (
+                "programas_96h_otros", "programas_16_96h_otros", "cursos_ofimatica_24h",
+                "vista_puntaje_otros_programas",
+            )
+        }),
+        ("5. Experiencia docente universitaria (máx. 4)", {
+            "fields": (
+                "pregrado_ciclos", "maestria_cursos", "doctorado_cursos",
+                "vista_puntaje_experiencia_docente",
+            )
+        }),
+        ("6. Experiencia profesional (máx. 6)", {
+            "fields": ("experiencia_profesional_anios", "vista_puntaje_experiencia_profesional")
+        }),
+        ("Evaluación Curricular — total (máx. 40, mínimo aprobatorio 20)", {
+            "fields": ("vista_puntaje_evaluacion_curricular",)
+        }),
+        ("Capacidad Docente — Anexo 11 (cada bloque de 0 a 7, máx. 35, mínimo aprobatorio 30)", {
+            "fields": (
+                "cd_planificacion", "cd_dominio_pedagogico", "cd_dominio_tecnico",
+                "cd_comunicacion", "cd_recursos_tecnologicos",
+                "vista_puntaje_capacidad_docente",
+            )
+        }),
+        ("Entrevista Personal — Anexo 12 (cada bloque de 0 a 5, máx. 25, mínimo aprobatorio 10)", {
+            "fields": (
+                "ep_proceso_ensenanza", "ep_desarrollo_institucional", "ep_especialidad_experiencia",
+                "ep_investigacion_innovacion", "ep_personalidad",
+                "vista_puntaje_entrevista_personal",
+            )
+        }),
+        ("Resultado final (mínimo aprobatorio 60 de 100)", {
+            "fields": ("vista_puntaje_total", "vista_resultado")
+        }),
+    )
+
+    @admin.display(description="Curricular")
+    def col_curricular(self, obj):
+        return f"{obj.puntaje_evaluacion_curricular()} / 40"
+
+    @admin.display(description="Capacidad Docente")
+    def col_capacidad_docente(self, obj):
+        return f"{obj.puntaje_capacidad_docente()} / 35"
+
+    @admin.display(description="Entrevista")
+    def col_entrevista(self, obj):
+        return f"{obj.puntaje_entrevista_personal()} / 25"
+
+    @admin.display(description="Puntaje Total")
+    def col_puntaje_total(self, obj):
+        return f"{obj.puntaje_total()} / 100"
+
+    @admin.display(description="Resultado")
+    def col_resultado(self, obj):
+        color = "#1c5c33" if obj.resultado().startswith("GANADOR") else "#a83232"
+        return format_html('<strong style="color:{}">{}</strong>', color, obj.resultado())
+
+    @admin.display(description="Puntaje bloque 1 (Grados y títulos)")
+    def vista_puntaje_grados_titulos(self, obj):
+        return obj.puntaje_grados_titulos()
+
+    @admin.display(description="Puntaje bloque 2 (Capacitaciones)")
+    def vista_puntaje_capacitaciones(self, obj):
+        return obj.puntaje_capacitaciones()
+
+    @admin.display(description="Puntaje bloque 3 (Eventos e investigación)")
+    def vista_puntaje_eventos_investigacion(self, obj):
+        return obj.puntaje_eventos_investigacion()
+
+    @admin.display(description="Puntaje bloque 4 (Otros programas)")
+    def vista_puntaje_otros_programas(self, obj):
+        return obj.puntaje_otros_programas()
+
+    @admin.display(description="Puntaje bloque 5 (Experiencia docente)")
+    def vista_puntaje_experiencia_docente(self, obj):
+        return obj.puntaje_experiencia_docente()
+
+    @admin.display(description="Puntaje bloque 6 (Experiencia profesional)")
+    def vista_puntaje_experiencia_profesional(self, obj):
+        return obj.puntaje_experiencia_profesional()
+
+    @admin.display(description="TOTAL Evaluación Curricular (máx. 40, mínimo 20)")
+    def vista_puntaje_evaluacion_curricular(self, obj):
+        return format_html("<strong>{} / 40</strong>", obj.puntaje_evaluacion_curricular())
+
+    @admin.display(description="TOTAL Capacidad Docente (máx. 35, mínimo 30)")
+    def vista_puntaje_capacidad_docente(self, obj):
+        return format_html("<strong>{} / 35</strong>", obj.puntaje_capacidad_docente())
+
+    @admin.display(description="TOTAL Entrevista Personal (máx. 25, mínimo 10)")
+    def vista_puntaje_entrevista_personal(self, obj):
+        return format_html("<strong>{} / 25</strong>", obj.puntaje_entrevista_personal())
+
+    @admin.display(description="PUNTAJE TOTAL (máx. 100, mínimo 60)")
+    def vista_puntaje_total(self, obj):
+        return format_html("<strong style='font-size:1.2em'>{} / 100</strong>", obj.puntaje_total())
+
+    @admin.display(description="Resultado")
+    def vista_resultado(self, obj):
+        color = "#1c5c33" if obj.resultado().startswith("GANADOR") else "#a83232"
+        return format_html('<strong style="font-size:1.2em; color:{}">{}</strong>', color, obj.resultado())

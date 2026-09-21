@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 
 
 class Especialidad(models.Model):
@@ -394,3 +395,248 @@ def registrar_actividad(request, accion, detalle=""):
     if usuario is not None and not usuario.is_authenticated:
         usuario = None
     RegistroActividad.objects.create(usuario=usuario, accion=accion, detalle=detalle)
+
+
+class Postulante(models.Model):
+    """Calificación de postulantes a la docencia — Manual del Personal Docente
+    de la ENFPP PNP (RD N°022-2022-ENFPP-PNP), Cap. III-B y Anexos 10 a 13.
+
+    Puntaje Total = Evaluación Curricular + Capacidad Docente + Entrevista
+    Personal. Las tres etapas son eliminatorias, con puntaje mínimo propio
+    cada una (ver Anexo 10, cuadro de puntajes mínimos/máximos)."""
+
+    class TablaCurricular(models.TextChoices):
+        ANEXO_10 = "ANEXO_10", "Anexo 10 — Concurso público general (civiles / EO-ESCFOCON-ESCPOGRA)"
+        ANEXO_13 = "ANEXO_13", "Anexo 13 — Ingreso de Suboficiales como docente (EESTP)"
+
+    class Procedencia(models.TextChoices):
+        PNP = "PNP", "PNP"
+        FFAA = "FFAA", "Fuerzas Armadas"
+        CIVIL = "CIVIL", "Civil"
+        EXTRANJERO = "EXTRANJERO", "Extranjero"
+
+    class Escuela(models.TextChoices):
+        EESTP = "EESTP", "EESTP PNP"
+        EO = "EO", "Escuela de Oficiales PNP"
+        ESCFOCON = "ESCFOCON", "ESCFOCON PNP"
+        ESCPOGRA = "ESCPOGRA", "ESCPOGRA PNP"
+
+    # --- Datos generales (Anexo 06) ---
+    apellidos_nombres = models.CharField(max_length=200)
+    dni_cip = models.CharField("DNI / CIP", max_length=20, blank=True)
+    grado = models.CharField(max_length=100, blank=True, help_text="Grado policial o 'Civil'")
+    procedencia = models.CharField(max_length=12, choices=Procedencia.choices, default=Procedencia.CIVIL)
+    escuela = models.CharField(max_length=10, choices=Escuela.choices, default=Escuela.EESTP)
+    unidad_didactica = models.CharField("Unidad didáctica / curso al que postula", max_length=200)
+    convocatoria = models.CharField(max_length=100, help_text="Ej. 2026-II, Semestre I 2026, etc.")
+    fecha_evaluacion = models.DateField(null=True, blank=True)
+    tabla_curricular = models.CharField(
+        max_length=10, choices=TablaCurricular.choices, default=TablaCurricular.ANEXO_10,
+        help_text="Según el origen del postulante, define cómo se puntúan grados y títulos (Anexo 10 vs Anexo 13).",
+    )
+
+    # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
+    tiene_titulo_profesional = models.BooleanField(
+        "Título Profesional Universitario / en Adm. y CC. Policiales", default=False
+    )
+    tiene_titulo_profesional_tecnico = models.BooleanField(
+        "Título Profesional Técnico en ciencias policiales (solo Anexo 13)", default=False
+    )
+    tiene_maestria = models.BooleanField("Grado académico de Maestro", default=False)
+    tiene_doctorado = models.BooleanField("Grado académico de Doctor", default=False)
+    tiene_segunda_especialidad = models.BooleanField("Segunda especialidad o título de especialista", default=False)
+
+    # --- bloque 2: Actualizaciones y capacitaciones afines (máx. 3) ---
+    diplomados_120h = models.PositiveSmallIntegerField(
+        "Diplomados afines ≥120h (1.0 c/u, tope 2)", default=0
+    )
+    programas_16_96h_afines = models.PositiveSmallIntegerField(
+        "Programas afines 16-96h (0.5 c/u, tope 2)", default=0
+    )
+
+    # --- bloque 3: Participación en eventos científicos e investigación (máx. 3) ---
+    ponente_eventos = models.PositiveSmallIntegerField("Ponente en eventos académicos (0.5 c/u, tope 1)", default=0)
+    asistente_eventos = models.PositiveSmallIntegerField("Asistente a eventos académicos (0.5 c/u, tope 1)", default=0)
+    investigaciones = models.PositiveSmallIntegerField("Investigaciones en la especialidad (1.0 c/u, tope 1)", default=0)
+    publicaciones = models.PositiveSmallIntegerField("Textos y/o libros publicados (1.0 c/u, tope 1)", default=0)
+
+    # --- bloque 4: Otros programas de formación continua (máx. 4) ---
+    programas_96h_otros = models.PositiveSmallIntegerField("Programas ≥96h (1.0 c/u, tope 2)", default=0)
+    programas_16_96h_otros = models.PositiveSmallIntegerField("Programas 16-96h (0.5 c/u, tope 2)", default=0)
+    cursos_ofimatica_24h = models.PositiveSmallIntegerField("Cursos de ofimática ≥24h (0.5 c/u, tope 2)", default=0)
+
+    # --- bloque 5: Experiencia docente universitaria (máx. 4) ---
+    pregrado_ciclos = models.PositiveSmallIntegerField(
+        "Docencia nivel pregrado, en ciclos (0.5 c/ciclo)", default=0
+    )
+    maestria_cursos = models.PositiveSmallIntegerField(
+        "Docencia posgrado Maestría, en cursos (0.5 c/curso, tope 1)", default=0
+    )
+    doctorado_cursos = models.PositiveSmallIntegerField(
+        "Docencia posgrado Doctorado, en cursos (0.5 c/curso, tope 1; solo Anexo 10)", default=0
+    )
+
+    # --- bloque 6: Experiencia profesional (máx. 6) ---
+    experiencia_profesional_anios = models.PositiveSmallIntegerField(
+        "Ejercicio profesional no docente, en años (1.0 c/año, tope 6)", default=0
+    )
+
+    # --- Capacidad Docente (Anexo 11, máx. 35: 5 bloques de 0 a 7) ---
+    cd_planificacion = models.PositiveSmallIntegerField(
+        "Planificación y evaluación de sesiones", default=0, validators=[MaxValueValidator(7)]
+    )
+    cd_dominio_pedagogico = models.PositiveSmallIntegerField(
+        "Dominio pedagógico", default=0, validators=[MaxValueValidator(7)]
+    )
+    cd_dominio_tecnico = models.PositiveSmallIntegerField(
+        "Dominio técnico", default=0, validators=[MaxValueValidator(7)]
+    )
+    cd_comunicacion = models.PositiveSmallIntegerField(
+        "Comunicación efectiva", default=0, validators=[MaxValueValidator(7)]
+    )
+    cd_recursos_tecnologicos = models.PositiveSmallIntegerField(
+        "Uso de recursos tecnológicos", default=0, validators=[MaxValueValidator(7)]
+    )
+
+    # --- Entrevista Personal (Anexo 12, máx. 25: 5 bloques de 0 a 5) ---
+    ep_proceso_ensenanza = models.PositiveSmallIntegerField(
+        "Proceso de enseñanza-aprendizaje", default=0, validators=[MaxValueValidator(5)]
+    )
+    ep_desarrollo_institucional = models.PositiveSmallIntegerField(
+        "Desarrollo institucional", default=0, validators=[MaxValueValidator(5)]
+    )
+    ep_especialidad_experiencia = models.PositiveSmallIntegerField(
+        "Especialidad y experiencia", default=0, validators=[MaxValueValidator(5)]
+    )
+    ep_investigacion_innovacion = models.PositiveSmallIntegerField(
+        "Investigación e innovación", default=0, validators=[MaxValueValidator(5)]
+    )
+    ep_personalidad = models.PositiveSmallIntegerField(
+        "Personalidad", default=0, validators=[MaxValueValidator(5)]
+    )
+
+    class Meta:
+        verbose_name = "Postulante (calificación docente)"
+        verbose_name_plural = "Postulantes (calificación docente)"
+        ordering = ["convocatoria", "unidad_didactica", "apellidos_nombres"]
+
+    def __str__(self):
+        return f"{self.apellidos_nombres} — {self.unidad_didactica} ({self.convocatoria})"
+
+    # --- Puntajes calculados ---
+
+    def puntaje_grados_titulos(self):
+        """Bloque 1 — depende de la tabla curricular (Anexo 10 vs Anexo 13)."""
+        if self.tabla_curricular == self.TablaCurricular.ANEXO_13:
+            total = 0
+            if self.tiene_titulo_profesional:
+                total += 5.0
+            if self.tiene_titulo_profesional_tecnico:
+                total += 4.0
+            if self.tiene_maestria or self.tiene_doctorado:
+                total += 6.0
+            if self.tiene_segunda_especialidad:
+                total += 5.0
+            return total
+        total = 0
+        if self.tiene_titulo_profesional:
+            total += 4.0
+        if self.tiene_doctorado:
+            total += 7.0
+        if self.tiene_maestria:
+            total += 5.0
+        if self.tiene_segunda_especialidad:
+            total += 4.0
+        return total
+
+    def puntaje_capacitaciones(self):
+        return min(self.diplomados_120h * 1.0, 2.0) + min(self.programas_16_96h_afines * 0.5, 1.0)
+
+    def puntaje_eventos_investigacion(self):
+        return (
+            min(self.ponente_eventos * 0.5, 0.5)
+            + min(self.asistente_eventos * 0.5, 0.5)
+            + min(self.investigaciones * 1.0, 1.0)
+            + min(self.publicaciones * 1.0, 1.0)
+        )
+
+    def puntaje_otros_programas(self):
+        return (
+            min(self.programas_96h_otros * 1.0, 2.0)
+            + min(self.programas_16_96h_otros * 0.5, 1.0)
+            + min(self.cursos_ofimatica_24h * 0.5, 1.0)
+        )
+
+    def puntaje_experiencia_docente(self):
+        if self.tabla_curricular == self.TablaCurricular.ANEXO_13:
+            return min(self.pregrado_ciclos * 0.5, 3.0) + min(self.maestria_cursos * 0.5, 1.0)
+        return (
+            min(self.pregrado_ciclos * 0.5, 2.0)
+            + min(self.maestria_cursos * 0.5, 1.0)
+            + min(self.doctorado_cursos * 0.5, 1.0)
+        )
+
+    def puntaje_experiencia_profesional(self):
+        return min(self.experiencia_profesional_anios * 1.0, 6.0)
+
+    def puntaje_evaluacion_curricular(self):
+        return round(
+            self.puntaje_grados_titulos()
+            + self.puntaje_capacitaciones()
+            + self.puntaje_eventos_investigacion()
+            + self.puntaje_otros_programas()
+            + self.puntaje_experiencia_docente()
+            + self.puntaje_experiencia_profesional(),
+            2,
+        )
+
+    def puntaje_capacidad_docente(self):
+        return (
+            self.cd_planificacion
+            + self.cd_dominio_pedagogico
+            + self.cd_dominio_tecnico
+            + self.cd_comunicacion
+            + self.cd_recursos_tecnologicos
+        )
+
+    def puntaje_entrevista_personal(self):
+        return (
+            self.ep_proceso_ensenanza
+            + self.ep_desarrollo_institucional
+            + self.ep_especialidad_experiencia
+            + self.ep_investigacion_innovacion
+            + self.ep_personalidad
+        )
+
+    def puntaje_total(self):
+        return round(
+            self.puntaje_evaluacion_curricular()
+            + self.puntaje_capacidad_docente()
+            + self.puntaje_entrevista_personal(),
+            2,
+        )
+
+    # --- Aptitud por etapa (eliminatorias, Anexo 10) ---
+    def apto_curricular(self):
+        return self.puntaje_evaluacion_curricular() >= 20
+
+    def apto_capacidad_docente(self):
+        return self.puntaje_capacidad_docente() >= 30
+
+    def apto_entrevista(self):
+        return self.puntaje_entrevista_personal() >= 10
+
+    def resultado(self):
+        if not (self.apto_curricular() and self.apto_capacidad_docente() and self.apto_entrevista()):
+            return "NO APTO"
+        return "GANADOR (potencial)" if self.puntaje_total() >= 60 else "NO APTO"
+
+    def grado_academico_nivel(self):
+        """Para el criterio de desempate 'mayor grado académico'."""
+        if self.tiene_doctorado:
+            return 3
+        if self.tiene_maestria:
+            return 2
+        if self.tiene_titulo_profesional or self.tiene_titulo_profesional_tecnico:
+            return 1
+        return 0
