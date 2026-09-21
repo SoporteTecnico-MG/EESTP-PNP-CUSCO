@@ -131,6 +131,11 @@ def _actualizar_estado_provisional(ar, inicio_dt, fin_dt):
     if not tiene_entrada and not tiene_salida:
         return
 
+    # Si el día se había cerrado antes de tiempo (ej. un cierre atrasado que
+    # corrió en la madrugada, antes de que las clases del día ocurrieran) y
+    # ya había quedado marcado Falta con descuento de horas, una marca real
+    # que llega después debe limpiar ese descuento — ya no aplica.
+    ar.horas_pedagogicas_descontadas = 0
     ar.salida_anticipada = False
 
     if tiene_entrada and tiene_salida:
