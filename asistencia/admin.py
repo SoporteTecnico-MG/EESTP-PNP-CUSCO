@@ -158,7 +158,7 @@ proceso_docente_site.index_template = "admin/procesodocente_index.html"
 _proceso_docente_get_app_list = proceso_docente_site.get_app_list
 
 _SECCIONES_PROCESO_DOCENTE = [
-    ("convocatorias", "Convocatorias", ["Postulante"]),
+    ("convocatorias", "Convocatorias", ["Postulante", "Convocatoria"]),
     ("consulta-docentes", "Consulta de Docentes", ["Docente"]),
 ]
 
@@ -202,6 +202,22 @@ def _get_app_list_proceso_docente(request, app_label=None):
 
 
 proceso_docente_site.get_app_list = _get_app_list_proceso_docente
+
+_proceso_docente_get_urls = proceso_docente_site.get_urls
+
+
+def _get_urls_proceso_docente():
+    custom = [
+        path(
+            "imprimir-ficha-curricular/<int:pk>/",
+            proceso_docente_site.admin_view(asistencia_views.imprimir_ficha_curricular),
+            name="imprimir_ficha_curricular",
+        ),
+    ]
+    return custom + _proceso_docente_get_urls()
+
+
+proceso_docente_site.get_urls = _get_urls_proceso_docente
 
 _control_docentes_get_urls = control_docentes_site.get_urls
 
@@ -558,6 +574,17 @@ class RegistroActividadAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(models.Convocatoria, site=proceso_docente_site)
+class ConvocatoriaAdmin(admin.ModelAdmin):
+    """Catálogo de convocatorias — se maneja aparte para que el campo
+    "Convocatoria" del postulante sea un desplegable (son pocas) en vez de
+    texto libre."""
+
+    list_display = ("nombre", "fecha_inicio", "fecha_fin")
+    search_fields = ("nombre",)
+    ordering = ("-fecha_inicio", "nombre")
+
+
 @admin.register(models.Postulante, site=proceso_docente_site)
 class PostulanteAdmin(admin.ModelAdmin):
     """Calificación de postulantes a la docencia, según el Manual del
@@ -566,10 +593,10 @@ class PostulanteAdmin(admin.ModelAdmin):
     resultado final se calculan solos."""
 
     list_display = (
-        "apellidos_nombres",
+        "nombre_completo",
         "convocatoria",
         "unidad_didactica",
-        "escuela",
+        "postula_a_otro_curso_misma_convocatoria",
         "col_curricular",
         "col_capacidad_docente",
         "col_entrevista",
@@ -577,11 +604,15 @@ class PostulanteAdmin(admin.ModelAdmin):
         "col_resultado",
         "docente",
     )
-    list_filter = ("convocatoria", "escuela", "procedencia", "tabla_curricular")
-    search_fields = ("apellidos_nombres", "dni_cip", "unidad_didactica")
-    ordering = ("convocatoria", "unidad_didactica", "apellidos_nombres")
+    list_filter = ("convocatoria", "unidad_didactica", "procedencia")
+    search_fields = ("apellidos", "nombres", "dni", "cip", "unidad_didactica__nombre")
+    ordering = ("convocatoria", "unidad_didactica", "apellidos", "nombres")
     autocomplete_fields = ("docente",)
     actions = ["vincular_o_crear_docente_action"]
+
+    @admin.display(description="Postulante", ordering="apellidos")
+    def nombre_completo(self, obj):
+        return obj.nombre_completo
 
     readonly_fields = (
         "vista_puntaje_grados_titulos",
@@ -591,6 +622,7 @@ class PostulanteAdmin(admin.ModelAdmin):
         "vista_puntaje_experiencia_docente",
         "vista_puntaje_experiencia_profesional",
         "vista_puntaje_evaluacion_curricular",
+        "vista_imprimir_ficha",
         "vista_puntaje_capacidad_docente",
         "vista_puntaje_entrevista_personal",
         "vista_puntaje_total",
@@ -600,9 +632,9 @@ class PostulanteAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Datos del postulante (Anexo 06)", {
             "fields": (
-                "apellidos_nombres", "dni_cip", "celular", "grado", "procedencia", "escuela",
-                "unidad_didactica", "convocatoria", "fecha_evaluacion", "tabla_curricular",
-                "docente",
+                "apellidos", "nombres", "dni", "cip", "celular", "grado", "procedencia",
+                "unidad_didactica", "convocatoria", "postula_a_otro_curso_misma_convocatoria",
+                "fecha_evaluacion", "docente",
             )
         }),
         ("1. Grados académicos y títulos profesionales (máx. 20)", {
@@ -632,7 +664,7 @@ class PostulanteAdmin(admin.ModelAdmin):
         }),
         ("5. Experiencia docente universitaria (máx. 4)", {
             "fields": (
-                "pregrado_ciclos", "maestria_cursos", "doctorado_cursos",
+                "pregrado_ciclos", "maestria_cursos",
                 "vista_puntaje_experiencia_docente",
             )
         }),
@@ -640,7 +672,7 @@ class PostulanteAdmin(admin.ModelAdmin):
             "fields": ("experiencia_profesional_anios", "vista_puntaje_experiencia_profesional")
         }),
         ("Evaluación Curricular — total (máx. 40, mínimo aprobatorio 20)", {
-            "fields": ("vista_puntaje_evaluacion_curricular",)
+            "fields": ("vista_puntaje_evaluacion_curricular", "vista_imprimir_ficha")
         }),
         ("Capacidad Docente — Anexo 11 (cada bloque de 0 a 7, máx. 35, mínimo aprobatorio 30)", {
             "fields": (
@@ -710,6 +742,18 @@ class PostulanteAdmin(admin.ModelAdmin):
     def vista_puntaje_evaluacion_curricular(self, obj):
         return format_html("<strong>{} / 40</strong>", obj.puntaje_evaluacion_curricular())
 
+    @admin.display(description="Formato imprimible")
+    def vista_imprimir_ficha(self, obj):
+        if not obj.pk:
+            return "Guarda el postulante primero."
+        url = reverse("procesodocente:imprimir_ficha_curricular", args=[obj.pk])
+        return format_html(
+            '<a class="button" href="{}" target="_blank" style="background:#16543f;color:#fff;'
+            'padding:.4rem .8rem;border-radius:.3rem;text-decoration:none;display:inline-block">'
+            '🖨️ Imprimir ficha de evaluación curricular</a>',
+            url,
+        )
+
     @admin.display(description="TOTAL Capacidad Docente (máx. 35, mínimo 30)")
     def vista_puntaje_capacidad_docente(self, obj):
         return format_html("<strong>{} / 35</strong>", obj.puntaje_capacidad_docente())
@@ -740,7 +784,7 @@ class PostulanteAdmin(admin.ModelAdmin):
             except ValueError as exc:
                 fallidos += 1
                 self.message_user(
-                    request, f"{postulante.apellidos_nombres}: {exc}", level="warning"
+                    request, f"{postulante.nombre_completo}: {exc}", level="warning"
                 )
         self.message_user(
             request,

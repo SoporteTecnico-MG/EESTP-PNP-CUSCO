@@ -397,17 +397,37 @@ def registrar_actividad(request, accion, detalle=""):
     RegistroActividad.objects.create(usuario=usuario, accion=accion, detalle=detalle)
 
 
+class Convocatoria(models.Model):
+    """Catálogo de convocatorias — son pocas y se repiten como filtro en cada
+    postulante, así que se manejan aparte en vez de escribirlas a mano cada
+    vez (evita variantes tipo '2026-II' vs '2026 - II' vs 'II-2026')."""
+
+    nombre = models.CharField(max_length=100, unique=True, help_text="Ej. 2026-II, Semestre I 2026, etc.")
+    fecha_inicio = models.DateField(null=True, blank=True)
+    fecha_fin = models.DateField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Convocatoria"
+        verbose_name_plural = "Convocatorias"
+        ordering = ["-fecha_inicio", "nombre"]
+
+    def __str__(self):
+        return self.nombre
+
+
 class Postulante(models.Model):
     """Calificación de postulantes a la docencia — Manual del Personal Docente
     de la ENFPP PNP (RD N°022-2022-ENFPP-PNP), Cap. III-B y Anexos 10 a 13.
+    Es para la EESTP PNP CUSCO exclusivamente (única escuela que maneja este
+    sistema) — por eso no hay un campo de "escuela" para elegir.
 
     Puntaje Total = Evaluación Curricular + Capacidad Docente + Entrevista
     Personal. Las tres etapas son eliminatorias, con puntaje mínimo propio
-    cada una (ver Anexo 10, cuadro de puntajes mínimos/máximos)."""
-
-    class TablaCurricular(models.TextChoices):
-        ANEXO_10 = "ANEXO_10", "Anexo 10 — Concurso público general (civiles / EO-ESCFOCON-ESCPOGRA)"
-        ANEXO_13 = "ANEXO_13", "Anexo 13 — Ingreso de Suboficiales como docente (EESTP)"
+    cada una (ver Anexo 10, cuadro de puntajes mínimos/máximos). La
+    Evaluación Curricular (revisión de expediente) se suele calificar el
+    mismo día que se recibe la documentación; Capacidad Docente y Entrevista
+    Personal se hacen otro día — por eso esos bloques no son obligatorios
+    para guardar el registro."""
 
     class Procedencia(models.TextChoices):
         PNP = "PNP", "PNP"
@@ -415,31 +435,50 @@ class Postulante(models.Model):
         CIVIL = "CIVIL", "Civil"
         EXTRANJERO = "EXTRANJERO", "Extranjero"
 
-    class Escuela(models.TextChoices):
-        EESTP = "EESTP", "EESTP PNP"
-        EO = "EO", "Escuela de Oficiales PNP"
-        ESCFOCON = "ESCFOCON", "ESCFOCON PNP"
-        ESCPOGRA = "ESCPOGRA", "ESCPOGRA PNP"
+    class Grado(models.TextChoices):
+        CIVIL = "CIVIL", "Civil"
+        GENERAL = "GENERAL", "General"
+        CORONEL = "CORONEL", "Coronel"
+        COMANDANTE = "COMANDANTE", "Comandante"
+        MAYOR = "MAYOR", "Mayor"
+        CAPITAN = "CAPITAN", "Capitán"
+        TENIENTE = "TENIENTE", "Teniente"
+        ALFEREZ = "ALFEREZ", "Alférez"
+        SO_SUPERIOR = "SO_SUPERIOR", "Suboficial Superior"
+        SO_BRIGADIER = "SO_BRIGADIER", "Suboficial Brigadier"
+        SOT1 = "SOT1", "Suboficial Técnico de 1ra"
+        SOT2 = "SOT2", "Suboficial Técnico de 2da"
+        SOT3 = "SOT3", "Suboficial Técnico de 3ra"
+        SO1 = "SO1", "Suboficial de 1ra"
+        SO2 = "SO2", "Suboficial de 2da"
+        SO3 = "SO3", "Suboficial de 3ra"
 
     # --- Datos generales (Anexo 06) ---
-    apellidos_nombres = models.CharField(max_length=200)
-    dni_cip = models.CharField("DNI / CIP", max_length=20, blank=True)
+    apellidos = models.CharField(max_length=150)
+    nombres = models.CharField(max_length=150)
+    dni = models.CharField("DNI", max_length=15, blank=True)
+    cip = models.CharField("CIP", max_length=15, blank=True, help_text="Opcional — solo aplica a personal PNP.")
     celular = models.CharField("Telf. celular", max_length=20, blank=True)
-    grado = models.CharField(max_length=100, blank=True, help_text="Grado policial o 'Civil'")
+    grado = models.CharField(max_length=15, choices=Grado.choices, default=Grado.CIVIL)
     procedencia = models.CharField(max_length=12, choices=Procedencia.choices, default=Procedencia.CIVIL)
-    escuela = models.CharField(max_length=10, choices=Escuela.choices, default=Escuela.EESTP)
-    unidad_didactica = models.CharField("Unidad didáctica / curso al que postula", max_length=200)
-    convocatoria = models.CharField(max_length=100, help_text="Ej. 2026-II, Semestre I 2026, etc.")
-    fecha_evaluacion = models.DateField(null=True, blank=True)
-    tabla_curricular = models.CharField(
-        max_length=10, choices=TablaCurricular.choices, default=TablaCurricular.ANEXO_10,
-        help_text="Según el origen del postulante, define cómo se puntúan grados y títulos (Anexo 10 vs Anexo 13).",
+    unidad_didactica = models.ForeignKey(
+        "Curso", on_delete=models.PROTECT, related_name="postulantes",
+        verbose_name="Unidad didáctica / curso al que postula",
     )
+    convocatoria = models.ForeignKey(
+        Convocatoria, on_delete=models.PROTECT, related_name="postulantes",
+    )
+    postula_a_otro_curso_misma_convocatoria = models.BooleanField(
+        "También postula a otro curso en esta misma convocatoria",
+        default=False,
+        help_text="Márcalo si esta misma persona tiene otro registro de postulante en esta convocatoria "
+        "(para otra unidad didáctica) — sirve para el listado por curso que se hará más adelante.",
+    )
+    fecha_evaluacion = models.DateField(null=True, blank=True)
     docente = models.ForeignKey(
         "Docente", on_delete=models.SET_NULL, null=True, blank=True, related_name="postulaciones",
-        help_text="Si esta persona YA existe como Docente en el sistema (por ejemplo, sigue postulando a otro "
-        "curso), selecciónala aquí para no crear un duplicado. Búscala por DNI o nombre completo exacto — "
-        "no la vincules por coincidencia parcial de nombre.",
+        help_text="Se detecta solo por DNI al guardar, si ya existe un Docente con ese mismo DNI. "
+        "También puedes seleccionarlo a mano si hace falta — nunca se vincula por nombre parecido.",
     )
 
     # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
@@ -478,9 +517,6 @@ class Postulante(models.Model):
     )
     maestria_cursos = models.PositiveSmallIntegerField(
         "Docencia posgrado Maestría, en cursos (0.5 c/curso, tope 1)", default=0
-    )
-    doctorado_cursos = models.PositiveSmallIntegerField(
-        "Docencia posgrado Doctorado, en cursos (0.5 c/curso, tope 1; solo Anexo 10)", default=0
     )
 
     # --- bloque 6: Experiencia profesional (máx. 6) ---
@@ -525,35 +561,40 @@ class Postulante(models.Model):
     class Meta:
         verbose_name = "Postulante (calificación docente)"
         verbose_name_plural = "Postulantes (calificación docente)"
-        ordering = ["convocatoria", "unidad_didactica", "apellidos_nombres"]
+        ordering = ["convocatoria", "unidad_didactica", "apellidos", "nombres"]
 
     def __str__(self):
-        return f"{self.apellidos_nombres} — {self.unidad_didactica} ({self.convocatoria})"
+        return f"{self.nombre_completo} — {self.unidad_didactica} ({self.convocatoria})"
+
+    @property
+    def nombre_completo(self):
+        return f"{self.apellidos} {self.nombres}".strip()
+
+    def save(self, *args, **kwargs):
+        # Si el DNI coincide con un Docente ya existente, se vincula solo —
+        # sin checkbox ni acción manual. Esto NO crea ni actualiza el
+        # Docente (eso sigue reservado a vincular_o_crear_docente, que solo
+        # corre cuando el postulante ya ganó); solo evita que jefatura tenga
+        # que acordarse de buscarlo y seleccionarlo a mano cada vez.
+        if not self.docente_id and self.dni:
+            coincidencia = Docente.objects.filter(dni=self.dni).first()
+            if coincidencia:
+                self.docente = coincidencia
+        super().save(*args, **kwargs)
 
     # --- Puntajes calculados ---
 
     def puntaje_grados_titulos(self):
-        """Bloque 1 — depende de la tabla curricular (Anexo 10 vs Anexo 13)."""
-        if self.tabla_curricular == self.TablaCurricular.ANEXO_13:
-            total = 0
-            if self.tiene_titulo_profesional:
-                total += 5.0
-            if self.tiene_titulo_profesional_tecnico:
-                total += 4.0
-            if self.tiene_maestria or self.tiene_doctorado:
-                total += 6.0
-            if self.tiene_segunda_especialidad:
-                total += 5.0
-            return total
+        """Bloque 1 — Anexo 13 (ingreso de personal a docente en la EESTP)."""
         total = 0
         if self.tiene_titulo_profesional:
-            total += 4.0
-        if self.tiene_doctorado:
-            total += 7.0
-        if self.tiene_maestria:
             total += 5.0
-        if self.tiene_segunda_especialidad:
+        if self.tiene_titulo_profesional_tecnico:
             total += 4.0
+        if self.tiene_maestria or self.tiene_doctorado:
+            total += 6.0
+        if self.tiene_segunda_especialidad:
+            total += 5.0
         return total
 
     def puntaje_capacitaciones(self):
@@ -575,13 +616,8 @@ class Postulante(models.Model):
         )
 
     def puntaje_experiencia_docente(self):
-        if self.tabla_curricular == self.TablaCurricular.ANEXO_13:
-            return min(self.pregrado_ciclos * 0.5, 3.0) + min(self.maestria_cursos * 0.5, 1.0)
-        return (
-            min(self.pregrado_ciclos * 0.5, 2.0)
-            + min(self.maestria_cursos * 0.5, 1.0)
-            + min(self.doctorado_cursos * 0.5, 1.0)
-        )
+        """Bloque 5 — Anexo 13: solo pregrado (tope 3.0) y maestría (tope 1.0)."""
+        return min(self.pregrado_ciclos * 0.5, 3.0) + min(self.maestria_cursos * 0.5, 1.0)
 
     def puntaje_experiencia_profesional(self):
         return min(self.experiencia_profesional_anios * 1.0, 6.0)
@@ -663,30 +699,30 @@ class Postulante(models.Model):
             )
 
         docente = self.docente
-        if docente is None and self.dni_cip:
-            docente = Docente.objects.filter(dni=self.dni_cip).first()
+        if docente is None and self.dni:
+            docente = Docente.objects.filter(dni=self.dni).first()
 
         creado = False
         if docente is None:
-            if not self.dni_cip:
+            if not self.dni:
                 raise ValueError(
-                    "No se puede crear el Docente sin DNI/CIP — complétalo en el postulante primero."
+                    "No se puede crear el Docente sin DNI — complétalo en el postulante primero."
                 )
             docente = Docente(
-                apellidos_nombres=self.apellidos_nombres,
-                dni=self.dni_cip,
-                id_biometrico=self.dni_cip,
-                grado=self.grado,
+                apellidos_nombres=self.nombre_completo,
+                dni=self.dni,
+                id_biometrico=self.dni,
+                grado=self.get_grado_display(),
                 celular=self.celular,
                 estado=Docente.Estado.ACTIVO,
                 fecha_ingreso=self.fecha_evaluacion,
             )
             creado = True
         else:
-            if not docente.dni and self.dni_cip:
-                docente.dni = self.dni_cip
+            if not docente.dni and self.dni:
+                docente.dni = self.dni
             if self.grado:
-                docente.grado = self.grado
+                docente.grado = self.get_grado_display()
             if self.celular:
                 docente.celular = self.celular
 

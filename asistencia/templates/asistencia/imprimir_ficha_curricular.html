@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Evaluación Curricular — {{ postulante.nombre_completo }}</title>
+<style>
+    * { box-sizing: border-box; }
+    body {
+        font-family: Arial, "Segoe UI", sans-serif;
+        color: #111;
+        margin: 0;
+        padding: 1.5rem 2rem;
+        font-size: 13px;
+    }
+    .hoja { max-width: 900px; margin: 0 auto; }
+    .barra-no-imprimir {
+        text-align: right;
+        margin-bottom: 1rem;
+    }
+    .barra-no-imprimir button {
+        background: #16543f;
+        color: #fff;
+        border: none;
+        padding: .5rem 1.1rem;
+        border-radius: .3rem;
+        font-size: .85rem;
+        cursor: pointer;
+    }
+    .encabezado { text-align: center; margin-bottom: 1.4rem; }
+    .encabezado .institucion { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
+    .encabezado .escuela { font-size: .92rem; font-weight: 600; margin-top: .1rem; }
+    .encabezado .anexo { font-size: .8rem; color: #444; margin-top: .3rem; }
+    .titulo-ficha {
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.05rem;
+        text-transform: uppercase;
+        border-top: 2px solid #111;
+        border-bottom: 2px solid #111;
+        padding: .5rem 0;
+        margin-bottom: 1.2rem;
+    }
+
+    table.datos { width: 100%; border-collapse: collapse; margin-bottom: 1.4rem; }
+    table.datos td {
+        border: 1px solid #111;
+        padding: .4rem .6rem;
+        font-size: .85rem;
+    }
+    table.datos td.etiqueta { font-weight: 700; background: #f0f0f0; width: 22%; }
+
+    table.evaluacion { width: 100%; border-collapse: collapse; margin-bottom: 1.6rem; }
+    table.evaluacion th, table.evaluacion td {
+        border: 1px solid #111;
+        padding: .5rem .6rem;
+        font-size: .85rem;
+        vertical-align: middle;
+    }
+    table.evaluacion thead th {
+        background: #e3e3e3;
+        text-align: center;
+        text-transform: uppercase;
+        font-size: .72rem;
+        letter-spacing: .03em;
+    }
+    table.evaluacion td.num { text-align: center; width: 3rem; }
+    table.evaluacion td.puntaje { text-align: center; width: 7rem; font-variant-numeric: tabular-nums; }
+    table.evaluacion tfoot td { font-weight: 700; background: #f0f0f0; }
+    table.evaluacion tfoot td.puntaje { font-size: 1rem; }
+
+    .resumen-final {
+        display: flex; justify-content: space-between; align-items: center;
+        border: 2px solid #111; padding: .7rem 1rem; margin-bottom: 2.5rem;
+        font-weight: 700;
+    }
+    .resumen-final .etapa { font-size: .85rem; }
+    .resumen-final .valor { font-size: 1.1rem; }
+    .nota-etapas {
+        font-size: .78rem; color: #444; margin: -1rem 0 2rem; text-align: center;
+    }
+
+    .firmas { display: flex; justify-content: space-between; gap: 2rem; margin-top: 3rem; }
+    .firma { flex: 1; text-align: center; font-size: .82rem; }
+    .firma .linea { border-top: 1px solid #111; margin-bottom: .3rem; padding-top: .3rem; }
+
+    @media print {
+        @page { size: portrait; margin: 1.2cm; }
+        .barra-no-imprimir { display: none; }
+        body { padding: 0; }
+    }
+</style>
+</head>
+<body>
+<div class="hoja">
+    <div class="barra-no-imprimir">
+        <button onclick="window.print()">🖨️ Imprimir</button>
+    </div>
+
+    <div class="encabezado">
+        <div class="institucion">Policía Nacional del Perú</div>
+        <div class="escuela">{{ nombre_escuela_largo }} ({{ nombre_escuela_corto }})</div>
+        <div class="anexo">Manual del Personal Docente de la ENFPP PNP — Anexo 13</div>
+    </div>
+
+    <div class="titulo-ficha">Evaluación Curricular</div>
+
+    <table class="datos">
+        <tr>
+            <td class="etiqueta">Apellidos</td>
+            <td>{{ postulante.apellidos }}</td>
+            <td class="etiqueta">Nombres</td>
+            <td>{{ postulante.nombres }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">DNI</td>
+            <td>{{ postulante.dni|default:"—" }}</td>
+            <td class="etiqueta">CIP</td>
+            <td>{{ postulante.cip|default:"—" }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Grado</td>
+            <td>{{ postulante.get_grado_display }}</td>
+            <td class="etiqueta">Procedencia</td>
+            <td>{{ postulante.get_procedencia_display }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Unidad didáctica</td>
+            <td>{{ postulante.unidad_didactica }}</td>
+            <td class="etiqueta">Convocatoria</td>
+            <td>{{ postulante.convocatoria }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Fecha de evaluación</td>
+            <td colspan="3">{{ postulante.fecha_evaluacion|date:"d/m/Y"|default:"—" }}</td>
+        </tr>
+    </table>
+
+    <table class="evaluacion">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Descripción</th>
+                <th>Puntaje obtenido</th>
+                <th>Puntaje máximo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for num, descripcion, obtenido, maximo in bloques %}
+            <tr>
+                <td class="num">{{ num }}</td>
+                <td>{{ descripcion }}</td>
+                <td class="puntaje">{{ obtenido }}</td>
+                <td class="puntaje">{{ maximo }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="2">TOTAL EVALUACIÓN CURRICULAR</td>
+                <td class="puntaje">{{ postulante.puntaje_evaluacion_curricular }}</td>
+                <td class="puntaje">40.00</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <div class="resumen-final">
+        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 20.00</span>
+        <span class="valor">
+            {% if postulante.apto_curricular %}APTO{% else %}NO APTO{% endif %}
+        </span>
+    </div>
+    <p class="nota-etapas">
+        Capacidad Docente y Entrevista Personal se califican en otra fecha — no forman parte de esta ficha.
+    </p>
+
+    <div class="firmas">
+        <div class="firma">
+            <div class="linea">Presidente del Consejo Académico Disciplinario</div>
+        </div>
+        <div class="firma">
+            <div class="linea">Miembro del Consejo Académico Disciplinario</div>
+        </div>
+        <div class="firma">
+            <div class="linea">Miembro del Consejo Académico Disciplinario</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

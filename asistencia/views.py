@@ -23,9 +23,13 @@ from .models import (
     MarcacionBiometrica,
     OfertaCurso,
     PeriodoAcademico,
+    Postulante,
     Promocion,
     registrar_actividad,
 )
+
+NOMBRE_ESCUELA_CORTO = "EESTP PNP CUSCO"
+NOMBRE_ESCUELA_LARGO = "Escuela de Educación Superior Técnico Profesional PNP Cusco"
 
 DIAS = list(BloqueHorario.Dia.choices)
 
@@ -1284,3 +1288,30 @@ def sincronizar_biometrico_vista(request):
     registrar_actividad(request, "Sincronización manual del biométrico", detalle=resultado["mensaje"])
     params = f"msg={quote(resultado['mensaje'])}" if resultado["ok"] else f"error={quote(resultado['mensaje'])}"
     return redirect(f"{reverse('controldocentes:index')}?{params}")
+
+
+@login_required
+def imprimir_ficha_curricular(request, pk):
+    """Hoja para imprimir de la Evaluación Curricular (Anexo 13) de un
+    postulante — es la única etapa que se califica al recibir el
+    expediente; Capacidad Docente y Entrevista se hacen otro día, así que
+    no se imprimen acá."""
+    postulante = get_object_or_404(Postulante, pk=pk)
+    bloques = [
+        ("1", "Grados Académicos y Títulos Profesionales", postulante.puntaje_grados_titulos(), 20),
+        ("2", "Actualizaciones y Capacitaciones afines a la unidad didáctica", postulante.puntaje_capacitaciones(), 3),
+        ("3", "Participación en Eventos Científicos e Investigaciones", postulante.puntaje_eventos_investigacion(), 3),
+        ("4", "Otros programas de formación continua", postulante.puntaje_otros_programas(), 4),
+        ("5", "Experiencia Docente Universitaria", postulante.puntaje_experiencia_docente(), 4),
+        ("6", "Experiencia Profesional", postulante.puntaje_experiencia_profesional(), 6),
+    ]
+    return render(
+        request,
+        "asistencia/imprimir_ficha_curricular.html",
+        {
+            "postulante": postulante,
+            "bloques": bloques,
+            "nombre_escuela_corto": NOMBRE_ESCUELA_CORTO,
+            "nombre_escuela_largo": NOMBRE_ESCUELA_LARGO,
+        },
+    )
