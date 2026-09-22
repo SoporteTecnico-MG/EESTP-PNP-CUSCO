@@ -6,8 +6,34 @@
        etiqueta arriba del campo — más fácil de leer que la tabla apretada
        por defecto del admin, y sigue exactamente el orden de las etapas
        del Manual (datos → grados y títulos → capacitaciones → ... ). */
-    .model-postulante #content-main { max-width: 760px; margin: 0 auto; }
+    /* Usa todo el ancho de la pantalla disponible — antes quedaba angosto
+       (760px) con el resto de la pantalla vacío, dificultando editar. */
+    .model-postulante #content-main { max-width: 1500px; margin: 0 auto; width: 100%; }
     .model-postulante #content-related { display: none; }
+
+    /* Bloque de datos generales, en dos columnas — son campos cortos, no
+       tiene sentido que cada uno ocupe todo el ancho de la pantalla. */
+    .model-postulante fieldset.module.aligned:first-of-type {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(240px, 1fr));
+        column-gap: 2rem;
+        align-items: start;
+    }
+    .model-postulante fieldset.module.aligned:first-of-type h2.fieldset-heading,
+    .model-postulante fieldset.module.aligned:first-of-type .form-row.field-postula_a_otro_curso_misma_convocatoria {
+        grid-column: 1 / -1;
+    }
+    @media (max-width: 720px) {
+        .model-postulante fieldset.module.aligned:first-of-type { grid-template-columns: 1fr; }
+    }
+
+    .pd-dni-aviso {
+        display: block;
+        font-size: .74rem;
+        color: var(--body-quiet-color);
+        margin-top: .3rem;
+    }
+    .pd-dni-aviso-ok { color: #1c5c33; font-weight: 600; }
 
     .model-postulante fieldset.module.aligned {
         background: #fff;
@@ -216,5 +242,6 @@
 {{ block.super }}
 <script>
     window.CRITERIOS_PUNTAJE = {{ criterios_puntaje_json|safe }};
+    window.BUSCAR_POSTULANTE_URL = "{{ buscar_postulante_url }}";
 </script>
 {% endblock %}

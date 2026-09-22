@@ -216,6 +216,11 @@ def _get_urls_proceso_docente():
             proceso_docente_site.admin_view(asistencia_views.imprimir_ficha_curricular),
             name="imprimir_ficha_curricular",
         ),
+        path(
+            "buscar-postulante-por-dni/",
+            proceso_docente_site.admin_view(asistencia_views.buscar_postulante_por_dni),
+            name="buscar_postulante_por_dni",
+        ),
     ]
     return custom + _proceso_docente_get_urls()
 
@@ -645,6 +650,7 @@ class PostulanteForm(forms.ModelForm):
         widgets = {
             "grado": _GradoSelect(attrs={"data-role": "grado-select"}),
             "procedencia": forms.Select(attrs={"data-role": "procedencia-select"}),
+            "dni": forms.TextInput(attrs={"data-role": "dni-input"}),
             **{
                 campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0"})
                 for campo in _CAMPOS_CONTEO_PUNTAJE
@@ -682,6 +688,7 @@ class PostulanteAdmin(admin.ModelAdmin):
         for clave, (unidad, tope) in models.Postulante._DEFAULTS_CRITERIOS.items():
             criterios.setdefault(clave, {"unidad": unidad, "tope": tope})
         extra_context["criterios_puntaje_json"] = json.dumps(criterios)
+        extra_context["buscar_postulante_url"] = reverse("procesodocente:buscar_postulante_por_dni")
         return super()._changeform_view(request, object_id, form_url, extra_context)
 
     list_display = (
@@ -724,7 +731,7 @@ class PostulanteAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Datos del postulante (Anexo 06)", {
             "fields": (
-                "apellidos", "nombres", "dni", "cip", "celular", "procedencia", "grado",
+                "dni", "apellidos", "nombres", "cip", "celular", "procedencia", "grado",
                 "unidad_didactica", "convocatoria", "postula_a_otro_curso_misma_convocatoria",
                 "fecha_evaluacion", "docente",
             )

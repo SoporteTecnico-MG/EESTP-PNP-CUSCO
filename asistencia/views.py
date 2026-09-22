@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, ProtectedError
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -1292,10 +1293,10 @@ def sincronizar_biometrico_vista(request):
 
 @login_required
 def imprimir_ficha_curricular(request, pk):
-    """Hoja para imprimir de la Evaluación Curricular (Anexo 13) de un
-    postulante — es la única etapa que se califica al recibir el
-    expediente; Capacidad Docente y Entrevista se hacen otro día, así que
-    no se imprimen acá."""
+    """Hoja para imprimir del expediente completo del postulante: Evaluación
+    Curricular (Anexo 13), Capacidad Docente (Anexo 11) y Entrevista
+    Personal (Anexo 12) — las tres etapas, cada una con su puntaje y su
+    mínimo aprobatorio, no solo el currículum."""
     postulante = get_object_or_404(Postulante, pk=pk)
     bloques = [
         ("1", "Grados Académicos y Títulos Profesionales", postulante.puntaje_grados_titulos(), Postulante.maximo_bloque(1)),
@@ -1305,14 +1306,51 @@ def imprimir_ficha_curricular(request, pk):
         ("5", "Experiencia Docente Universitaria", postulante.puntaje_experiencia_docente(), Postulante.maximo_bloque(5)),
         ("6", "Experiencia Profesional", postulante.puntaje_experiencia_profesional(), Postulante.maximo_bloque(6)),
     ]
+    capacidad_docente = [
+        ("Planificación y evaluación de sesiones", postulante.cd_planificacion),
+        ("Dominio pedagógico", postulante.cd_dominio_pedagogico),
+        ("Dominio técnico", postulante.cd_dominio_tecnico),
+        ("Comunicación efectiva", postulante.cd_comunicacion),
+        ("Uso de recursos tecnológicos", postulante.cd_recursos_tecnologicos),
+    ]
+    entrevista_personal = [
+        ("Proceso de enseñanza-aprendizaje", postulante.ep_proceso_ensenanza),
+        ("Desarrollo institucional", postulante.ep_desarrollo_institucional),
+        ("Especialidad y experiencia", postulante.ep_especialidad_experiencia),
+        ("Investigación e innovación", postulante.ep_investigacion_innovacion),
+        ("Personalidad", postulante.ep_personalidad),
+    ]
     return render(
         request,
         "asistencia/imprimir_ficha_curricular.html",
         {
             "postulante": postulante,
             "bloques": bloques,
+            "capacidad_docente": capacidad_docente,
+            "entrevista_personal": entrevista_personal,
             "maximo_curricular": Postulante.maximo_evaluacion_curricular(),
             "nombre_escuela_corto": NOMBRE_ESCUELA_CORTO,
             "nombre_escuela_largo": NOMBRE_ESCUELA_LARGO,
         },
     )
+
+
+def buscar_postulante_por_dni(request):
+    """Devuelve en JSON los datos del último registro de Postulante con ese
+    DNI (si existe), para autocompletar el formulario y evitar que jefatura
+    reescriba a mano los datos de alguien que ya postuló antes."""
+    dni = (request.GET.get("dni") or "").strip()
+    if not dni:
+        return JsonResponse({"encontrado": False})
+    anterior = Postulante.objects.filter(dni=dni).order_by("-id").first()
+    if not anterior:
+        return JsonResponse({"encontrado": False})
+    return JsonResponse({
+        "encontrado": True,
+        "apellidos": anterior.apellidos,
+        "nombres": anterior.nombres,
+        "cip": anterior.cip,
+        "celular": anterior.celular,
+        "procedencia": anterior.procedencia,
+        "grado": anterior.grado,
+    })

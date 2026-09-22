@@ -75,9 +75,21 @@
     }
     .resumen-final .etapa { font-size: .85rem; }
     .resumen-final .valor { font-size: 1.1rem; }
-    .nota-etapas {
-        font-size: .78rem; color: #444; margin: -1rem 0 2rem; text-align: center;
+    .resumen-final.resumen-total { background: #f0f0f0; border-width: 3px; margin-bottom: 2rem; }
+    .resumen-final.resumen-total .etapa { font-size: .82rem; }
+    .resumen-final.resumen-total .valor { font-size: 1.25rem; }
+
+    .subtitulo-seccion {
+        font-weight: 700;
+        font-size: .92rem;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+        color: #16543f;
+        border-bottom: 2px solid #16543f;
+        padding-bottom: .3rem;
+        margin: 1.6rem 0 .8rem;
     }
+    .subtitulo-seccion:first-of-type { margin-top: 0; }
 
     .firmas { display: flex; justify-content: space-between; gap: 2rem; margin-top: 3rem; }
     .firma { flex: 1; text-align: center; font-size: .82rem; }
@@ -99,10 +111,11 @@
     <div class="encabezado">
         <div class="institucion">Policía Nacional del Perú</div>
         <div class="escuela">{{ nombre_escuela_largo }} ({{ nombre_escuela_corto }})</div>
-        <div class="anexo">Manual del Personal Docente de la ENFPP PNP — Anexo 13</div>
+        <div class="anexo">Manual del Personal Docente de la ENFPP PNP — Anexos 10 a 13</div>
     </div>
 
-    <div class="titulo-ficha">Evaluación Curricular</div>
+    <div class="titulo-ficha">Ficha de Calificación del Postulante a la Docencia</div>
+    <div class="subtitulo-seccion">1. Evaluación Curricular — Anexo 13</div>
 
     <table class="datos">
         <tr>
@@ -169,9 +182,82 @@
             {% if postulante.apto_curricular %}APTO{% else %}NO APTO{% endif %}
         </span>
     </div>
-    <p class="nota-etapas">
-        Capacidad Docente y Entrevista Personal se califican en otra fecha — no forman parte de esta ficha.
-    </p>
+
+    <div class="subtitulo-seccion">2. Capacidad Docente — Anexo 11</div>
+    <table class="evaluacion">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Descripción</th>
+                <th>Puntaje obtenido</th>
+                <th>Puntaje máximo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for descripcion, obtenido in capacidad_docente %}
+            <tr>
+                <td class="num">{{ forloop.counter }}</td>
+                <td>{{ descripcion }}</td>
+                <td class="puntaje">{{ obtenido }}</td>
+                <td class="puntaje">7</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="2">TOTAL CAPACIDAD DOCENTE</td>
+                <td class="puntaje">{{ postulante.puntaje_capacidad_docente }}</td>
+                <td class="puntaje">35</td>
+            </tr>
+        </tfoot>
+    </table>
+    <div class="resumen-final">
+        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 30.00</span>
+        <span class="valor">
+            {% if postulante.apto_capacidad_docente %}APTO{% else %}NO APTO{% endif %}
+        </span>
+    </div>
+
+    <div class="subtitulo-seccion">3. Entrevista Personal — Anexo 12</div>
+    <table class="evaluacion">
+        <thead>
+            <tr>
+                <th>N°</th>
+                <th>Descripción</th>
+                <th>Puntaje obtenido</th>
+                <th>Puntaje máximo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for descripcion, obtenido in entrevista_personal %}
+            <tr>
+                <td class="num">{{ forloop.counter }}</td>
+                <td>{{ descripcion }}</td>
+                <td class="puntaje">{{ obtenido }}</td>
+                <td class="puntaje">5</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="2">TOTAL ENTREVISTA PERSONAL</td>
+                <td class="puntaje">{{ postulante.puntaje_entrevista_personal }}</td>
+                <td class="puntaje">25</td>
+            </tr>
+        </tfoot>
+    </table>
+    <div class="resumen-final">
+        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 10.00</span>
+        <span class="valor">
+            {% if postulante.apto_entrevista %}APTO{% else %}NO APTO{% endif %}
+        </span>
+    </div>
+
+    <div class="subtitulo-seccion">Resultado Final</div>
+    <div class="resumen-final resumen-total">
+        <span class="etapa">Puntaje Total (Curricular + Capacidad Docente + Entrevista) — mínimo aprobatorio 60.00 de 100</span>
+        <span class="valor">{{ postulante.puntaje_total }} / 100 — {{ postulante.resultado }}</span>
+    </div>
 
     <div class="firmas">
         <div class="firma">
