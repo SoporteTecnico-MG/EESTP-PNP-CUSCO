@@ -1,3 +1,5 @@
+import json
+import math
 from urllib.parse import urlencode
 
 from django import forms
@@ -159,6 +161,7 @@ _proceso_docente_get_app_list = proceso_docente_site.get_app_list
 
 _SECCIONES_PROCESO_DOCENTE = [
     ("convocatorias", "Convocatorias", ["Postulante", "Convocatoria"]),
+    ("escala-calificacion", "Escala de Calificación", ["CriterioPuntaje"]),
     ("consulta-docentes", "Consulta de Docentes", ["Docente"]),
 ]
 
@@ -585,6 +588,18 @@ class UnidadDidacticaConvocatoriaInline(admin.TabularInline):
     fields = ("nombre", "especialidad_funcional", "perfil_profesional")
 
 
+@admin.register(models.CriterioPuntaje, site=proceso_docente_site)
+class CriterioPuntajeAdmin(admin.ModelAdmin):
+    """Escala de puntos de la Evaluación Curricular — editable para poder
+    combinar/ajustar libremente los valores del Anexo 10 y el Anexo 13 (o
+    cualquier otro esquema) sin tocar código."""
+
+    list_display = ("etiqueta", "bloque", "puntaje_por_unidad", "tope", "orden")
+    list_editable = ("puntaje_por_unidad", "tope", "orden")
+    list_filter = ("bloque",)
+    ordering = ("bloque", "orden")
+
+
 @admin.register(models.Convocatoria, site=proceso_docente_site)
 class ConvocatoriaAdmin(admin.ModelAdmin):
     """Catálogo de convocatorias — se maneja aparte para que el campo
@@ -601,12 +616,73 @@ class ConvocatoriaAdmin(admin.ModelAdmin):
         return obj.unidades_didacticas.count()
 
 
+class _GradoSelect(forms.Select):
+    """Marca cada <option> con a qué Procedencia corresponde, para que
+    postulante_form.js muestre solo las opciones relevantes (grados
+    PNP/FFAA, o títulos civiles) según lo que se elija en Procedencia."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        valor_real = getattr(value, "value", value)
+        if valor_real in models.Postulante.GRADOS_PNP_FFAA:
+            option["attrs"]["data-procedencia"] = "PNP_FFAA"
+        elif valor_real in models.Postulante.GRADOS_CIVIL:
+            option["attrs"]["data-procedencia"] = "CIVIL"
+        return option
+
+
+_CAMPOS_CONTEO_PUNTAJE = [
+    "diplomados_120h", "programas_16_96h_afines", "ponente_eventos", "asistente_eventos",
+    "investigaciones", "publicaciones", "programas_96h_otros", "programas_16_96h_otros",
+    "cursos_ofimatica_24h", "pregrado_ciclos", "maestria_cursos", "experiencia_profesional_anios",
+]
+
+
+class PostulanteForm(forms.ModelForm):
+    class Meta:
+        model = models.Postulante
+        fields = "__all__"
+        widgets = {
+            "grado": _GradoSelect(attrs={"data-role": "grado-select"}),
+            "procedencia": forms.Select(attrs={"data-role": "procedencia-select"}),
+            **{
+                campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0"})
+                for campo in _CAMPOS_CONTEO_PUNTAJE
+            },
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Límite real en el campo: no tiene sentido digitar más unidades de
+        # las que ya saturan el tope de ese criterio.
+        for campo in _CAMPOS_CONTEO_PUNTAJE:
+            unidad, tope = models.Postulante.criterio(campo)
+            if unidad > 0:
+                self.fields[campo].widget.attrs["max"] = math.ceil(tope / unidad)
+
+
 @admin.register(models.Postulante, site=proceso_docente_site)
 class PostulanteAdmin(admin.ModelAdmin):
     """Calificación de postulantes a la docencia, según el Manual del
     Personal Docente de la ENFPP PNP (Anexos 10 a 13) — un campo por cada
     renglón de las tablas oficiales; el puntaje de cada bloque y el
     resultado final se calculan solos."""
+
+    form = PostulanteForm
+
+    class Media:
+        js = ("asistencia/postulante_form.js",)
+
+    def _changeform_view(self, request, object_id, form_url, extra_context):
+        extra_context = extra_context or {}
+        criterios = {
+            fila.clave: {"unidad": float(fila.puntaje_por_unidad), "tope": float(fila.tope)}
+            for fila in models.CriterioPuntaje.objects.all()
+        }
+        for clave, (unidad, tope) in models.Postulante._DEFAULTS_CRITERIOS.items():
+            criterios.setdefault(clave, {"unidad": unidad, "tope": tope})
+        extra_context["criterios_puntaje_json"] = json.dumps(criterios)
+        return super()._changeform_view(request, object_id, form_url, extra_context)
 
     list_display = (
         "nombre_completo",
@@ -648,7 +724,7 @@ class PostulanteAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Datos del postulante (Anexo 06)", {
             "fields": (
-                "apellidos", "nombres", "dni", "cip", "celular", "grado", "procedencia",
+                "apellidos", "nombres", "dni", "cip", "celular", "procedencia", "grado",
                 "unidad_didactica", "convocatoria", "postula_a_otro_curso_misma_convocatoria",
                 "fecha_evaluacion", "docente",
             )
@@ -711,7 +787,7 @@ class PostulanteAdmin(admin.ModelAdmin):
 
     @admin.display(description="Curricular")
     def col_curricular(self, obj):
-        return f"{obj.puntaje_evaluacion_curricular()} / 40"
+        return f"{obj.puntaje_evaluacion_curricular()} / {models.Postulante.maximo_evaluacion_curricular()}"
 
     @admin.display(description="Capacidad Docente")
     def col_capacidad_docente(self, obj):
@@ -756,7 +832,9 @@ class PostulanteAdmin(admin.ModelAdmin):
 
     @admin.display(description="TOTAL Evaluación Curricular (máx. 40, mínimo 20)")
     def vista_puntaje_evaluacion_curricular(self, obj):
-        return format_html("<strong>{} / 40</strong>", obj.puntaje_evaluacion_curricular())
+        return format_html(
+            "<strong>{} / {}</strong>", obj.puntaje_evaluacion_curricular(), models.Postulante.maximo_evaluacion_curricular()
+        )
 
     @admin.display(description="Formato imprimible")
     def vista_imprimir_ficha(self, obj):

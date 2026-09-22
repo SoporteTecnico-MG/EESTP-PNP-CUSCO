@@ -113,5 +113,108 @@
     @media (max-width: 820px) {
         .model-postulante #content-main { max-width: 100%; }
     }
+
+    /* Campos que puntúan (bloques 1 a 6): el ítem y su puntaje van en la
+       misma línea, uno al lado del otro — no la etiqueta arriba y el
+       campo debajo como el resto del formulario. */
+    .model-postulante .form-row.field-tiene_titulo_profesional .flex-container,
+    .model-postulante .form-row.field-tiene_titulo_profesional_tecnico .flex-container,
+    .model-postulante .form-row.field-tiene_maestria .flex-container,
+    .model-postulante .form-row.field-tiene_doctorado .flex-container,
+    .model-postulante .form-row.field-tiene_segunda_especialidad .flex-container,
+    .model-postulante .form-row.field-diplomados_120h .flex-container,
+    .model-postulante .form-row.field-programas_16_96h_afines .flex-container,
+    .model-postulante .form-row.field-ponente_eventos .flex-container,
+    .model-postulante .form-row.field-asistente_eventos .flex-container,
+    .model-postulante .form-row.field-investigaciones .flex-container,
+    .model-postulante .form-row.field-publicaciones .flex-container,
+    .model-postulante .form-row.field-programas_96h_otros .flex-container,
+    .model-postulante .form-row.field-programas_16_96h_otros .flex-container,
+    .model-postulante .form-row.field-cursos_ofimatica_24h .flex-container,
+    .model-postulante .form-row.field-pregrado_ciclos .flex-container,
+    .model-postulante .form-row.field-maestria_cursos .flex-container,
+    .model-postulante .form-row.field-experiencia_profesional_anios .flex-container {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between;
+        gap: .8rem;
+        flex-wrap: wrap;
+    }
+    .model-postulante .form-row.field-tiene_titulo_profesional .flex-container > label,
+    .model-postulante .form-row.field-tiene_titulo_profesional_tecnico .flex-container > label,
+    .model-postulante .form-row.field-tiene_maestria .flex-container > label,
+    .model-postulante .form-row.field-tiene_doctorado .flex-container > label,
+    .model-postulante .form-row.field-tiene_segunda_especialidad .flex-container > label,
+    .model-postulante .form-row.field-diplomados_120h .flex-container > label,
+    .model-postulante .form-row.field-programas_16_96h_afines .flex-container > label,
+    .model-postulante .form-row.field-ponente_eventos .flex-container > label,
+    .model-postulante .form-row.field-asistente_eventos .flex-container > label,
+    .model-postulante .form-row.field-investigaciones .flex-container > label,
+    .model-postulante .form-row.field-publicaciones .flex-container > label,
+    .model-postulante .form-row.field-programas_96h_otros .flex-container > label,
+    .model-postulante .form-row.field-programas_16_96h_otros .flex-container > label,
+    .model-postulante .form-row.field-cursos_ofimatica_24h .flex-container > label,
+    .model-postulante .form-row.field-pregrado_ciclos .flex-container > label,
+    .model-postulante .form-row.field-maestria_cursos .flex-container > label,
+    .model-postulante .form-row.field-experiencia_profesional_anios .flex-container > label {
+        text-transform: none;
+        font-size: .88rem;
+        font-weight: 500;
+        color: var(--body-fg);
+        flex: 1;
+        min-width: 220px;
+    }
+    .model-postulante .form-row input[type="number"].pd-input {
+        width: 5.5rem !important;
+        max-width: 5.5rem !important;
+        text-align: center;
+        flex: none;
+        order: 2;
+    }
+    .pd-badge {
+        font-family: "Roboto Mono", monospace;
+        font-size: .78rem;
+        font-weight: 700;
+        color: var(--secondary);
+        background: var(--body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 1rem;
+        padding: .2rem .7rem;
+        white-space: nowrap;
+        order: 3;
+    }
+    .pd-badge.pd-badge-tope { color: var(--rojo, #a83232); border-color: var(--rojo, #a83232); }
+    .pd-resumen-bloque {
+        margin-top: 1rem;
+        padding-top: .9rem;
+        border-top: 1px dashed var(--border-color);
+        display: flex;
+        justify-content: flex-end;
+        font-weight: 700;
+        font-size: .9rem;
+        color: var(--secondary);
+    }
+    #pd-total-flotante {
+        position: sticky;
+        top: env(safe-area-inset-top, 0px);
+        z-index: 50;
+        background: var(--primary);
+        color: #fff;
+        border-radius: .6rem;
+        padding: .8rem 1.2rem;
+        margin-bottom: 1.2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 700;
+        box-shadow: 0 2px 8px rgba(13,59,46,.25);
+    }
+    #pd-total-flotante .num { font-family: "Roboto Mono", monospace; font-size: 1.1rem; }
 </style>
+{% endblock %}
+{% block admin_change_form_document_ready %}
+{{ block.super }}
+<script>
+    window.CRITERIOS_PUNTAJE = {{ criterios_puntaje_json|safe }};
+</script>
 {% endblock %}

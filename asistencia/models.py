@@ -445,6 +445,45 @@ class UnidadDidacticaConvocatoria(models.Model):
         return f"{self.nombre} ({self.convocatoria})"
 
 
+class CriterioPuntaje(models.Model):
+    """Escala de puntos de la Evaluación Curricular, editable — en vez de
+    tener fijo el Anexo 10 o el Anexo 13, cada renglón (título profesional,
+    maestría, doctorado, etc.) tiene su propio puntaje por unidad y su tope,
+    así se puede combinar/ajustar libremente sin tocar código."""
+
+    class Bloque(models.IntegerChoices):
+        GRADOS_TITULOS = 1, "1. Grados académicos y títulos profesionales"
+        CAPACITACIONES = 2, "2. Actualizaciones y capacitaciones afines"
+        EVENTOS_INVESTIGACION = 3, "3. Participación en eventos científicos e investigación"
+        OTROS_PROGRAMAS = 4, "4. Otros programas de formación continua"
+        EXPERIENCIA_DOCENTE = 5, "5. Experiencia docente universitaria"
+        EXPERIENCIA_PROFESIONAL = 6, "6. Experiencia profesional"
+
+    clave = models.SlugField(
+        max_length=50, unique=True,
+        help_text="Identificador técnico — debe coincidir con el campo del postulante que puntúa. No cambiarlo.",
+    )
+    etiqueta = models.CharField(max_length=200)
+    bloque = models.PositiveSmallIntegerField(choices=Bloque.choices)
+    orden = models.PositiveSmallIntegerField(default=0)
+    puntaje_por_unidad = models.DecimalField(
+        "Puntaje por unidad", max_digits=4, decimal_places=2,
+        help_text="Para casillas (sí/no) es el puntaje que se da una sola vez. Para conteos, el puntaje c/u.",
+    )
+    tope = models.DecimalField(
+        "Puntaje máximo (tope)", max_digits=4, decimal_places=2,
+        help_text="Puntaje máximo que puede aportar este criterio, sin importar cuántas unidades se registren.",
+    )
+
+    class Meta:
+        verbose_name = "Criterio de puntaje"
+        verbose_name_plural = "Criterios de puntaje (escala de calificación)"
+        ordering = ["bloque", "orden"]
+
+    def __str__(self):
+        return f"{self.etiqueta} ({self.puntaje_por_unidad} c/u, tope {self.tope})"
+
+
 class Postulante(models.Model):
     """Calificación de postulantes a la docencia — Manual del Personal Docente
     de la ENFPP PNP (RD N°022-2022-ENFPP-PNP), Cap. III-B y Anexos 10 a 13.
@@ -466,7 +505,7 @@ class Postulante(models.Model):
         EXTRANJERO = "EXTRANJERO", "Extranjero"
 
     class Grado(models.TextChoices):
-        CIVIL = "CIVIL", "Civil"
+        # -- Personal policial/militar (PNP, FFAA) --
         GENERAL = "GENERAL", "General"
         CORONEL = "CORONEL", "Coronel"
         COMANDANTE = "COMANDANTE", "Comandante"
@@ -482,6 +521,31 @@ class Postulante(models.Model):
         SO1 = "SO1", "Suboficial de 1ra"
         SO2 = "SO2", "Suboficial de 2da"
         SO3 = "SO3", "Suboficial de 3ra"
+        # -- Civil / Extranjero (grado académico o título) --
+        CIVIL = "CIVIL", "Civil (sin título indicado)"
+        TECNICO = "TECNICO", "Técnico"
+        BACHILLER = "BACHILLER", "Bachiller"
+        LICENCIADO = "LICENCIADO", "Licenciado"
+        INGENIERO = "INGENIERO", "Ingeniero"
+        ABOGADO = "ABOGADO", "Abogado"
+        MAGISTER = "MAGISTER", "Magíster"
+        DOCTOR = "DOCTOR", "Doctor"
+        OTRO = "OTRO", "Otro"
+
+    # Un policía o militar SÍ puede tener además un grado académico (p. ej. un
+    # Mayor PNP con maestría) — eso se registra aparte en "Grados académicos y
+    # títulos" (más abajo), no reemplaza su grado policial en este campo. Esta
+    # lista solo sirve para que el desplegable de Grado muestre las opciones
+    # que corresponden según la Procedencia elegida (ver admin_postulante.js).
+    GRADOS_PNP_FFAA = [
+        Grado.GENERAL, Grado.CORONEL, Grado.COMANDANTE, Grado.MAYOR, Grado.CAPITAN,
+        Grado.TENIENTE, Grado.ALFEREZ, Grado.SO_SUPERIOR, Grado.SO_BRIGADIER,
+        Grado.SOT1, Grado.SOT2, Grado.SOT3, Grado.SO1, Grado.SO2, Grado.SO3,
+    ]
+    GRADOS_CIVIL = [
+        Grado.CIVIL, Grado.TECNICO, Grado.BACHILLER, Grado.LICENCIADO,
+        Grado.INGENIERO, Grado.ABOGADO, Grado.MAGISTER, Grado.DOCTOR, Grado.OTRO,
+    ]
 
     # --- Datos generales (Anexo 06) ---
     apellidos = models.CharField(max_length=150)
@@ -613,44 +677,87 @@ class Postulante(models.Model):
         super().save(*args, **kwargs)
 
     # --- Puntajes calculados ---
+    # El puntaje por unidad y el tope de cada criterio salen de
+    # CriterioPuntaje (editable en el admin) — así se puede combinar o
+    # ajustar libremente la escala del Anexo 10/13 sin tocar código. Si un
+    # criterio todavía no está configurado, se usa el valor por defecto
+    # (el mismo del Anexo 13) para que nada se rompa antes de cargar la
+    # escala real.
+
+    _DEFAULTS_CRITERIOS = {
+        "tiene_titulo_profesional": (5.0, 5.0),
+        "tiene_titulo_profesional_tecnico": (4.0, 4.0),
+        "tiene_maestria": (6.0, 6.0),
+        "tiene_doctorado": (6.0, 6.0),
+        "tiene_segunda_especialidad": (5.0, 5.0),
+        "diplomados_120h": (1.0, 2.0),
+        "programas_16_96h_afines": (0.5, 1.0),
+        "ponente_eventos": (0.5, 0.5),
+        "asistente_eventos": (0.5, 0.5),
+        "investigaciones": (1.0, 1.0),
+        "publicaciones": (1.0, 1.0),
+        "programas_96h_otros": (1.0, 2.0),
+        "programas_16_96h_otros": (0.5, 1.0),
+        "cursos_ofimatica_24h": (0.5, 1.0),
+        "pregrado_ciclos": (0.5, 3.0),
+        "maestria_cursos": (0.5, 1.0),
+        "experiencia_profesional_anios": (1.0, 6.0),
+    }
+
+    @classmethod
+    def criterio(cls, clave):
+        """Devuelve (puntaje_por_unidad, tope) para un criterio — desde la
+        base si ya está configurado, si no, el valor por defecto."""
+        fila = CriterioPuntaje.objects.filter(clave=clave).first()
+        if fila:
+            return float(fila.puntaje_por_unidad), float(fila.tope)
+        return cls._DEFAULTS_CRITERIOS[clave]
+
+    def _puntos(self, clave, cantidad):
+        unidad, tope = self.criterio(clave)
+        return min(cantidad * unidad, tope)
 
     def puntaje_grados_titulos(self):
-        """Bloque 1 — Anexo 13 (ingreso de personal a docente en la EESTP)."""
         total = 0
         if self.tiene_titulo_profesional:
-            total += 5.0
+            total += self._puntos("tiene_titulo_profesional", 1)
         if self.tiene_titulo_profesional_tecnico:
-            total += 4.0
-        if self.tiene_maestria or self.tiene_doctorado:
-            total += 6.0
+            total += self._puntos("tiene_titulo_profesional_tecnico", 1)
+        if self.tiene_maestria:
+            total += self._puntos("tiene_maestria", 1)
+        if self.tiene_doctorado:
+            total += self._puntos("tiene_doctorado", 1)
         if self.tiene_segunda_especialidad:
-            total += 5.0
+            total += self._puntos("tiene_segunda_especialidad", 1)
         return total
 
     def puntaje_capacitaciones(self):
-        return min(self.diplomados_120h * 1.0, 2.0) + min(self.programas_16_96h_afines * 0.5, 1.0)
+        return self._puntos("diplomados_120h", self.diplomados_120h) + self._puntos(
+            "programas_16_96h_afines", self.programas_16_96h_afines
+        )
 
     def puntaje_eventos_investigacion(self):
         return (
-            min(self.ponente_eventos * 0.5, 0.5)
-            + min(self.asistente_eventos * 0.5, 0.5)
-            + min(self.investigaciones * 1.0, 1.0)
-            + min(self.publicaciones * 1.0, 1.0)
+            self._puntos("ponente_eventos", self.ponente_eventos)
+            + self._puntos("asistente_eventos", self.asistente_eventos)
+            + self._puntos("investigaciones", self.investigaciones)
+            + self._puntos("publicaciones", self.publicaciones)
         )
 
     def puntaje_otros_programas(self):
         return (
-            min(self.programas_96h_otros * 1.0, 2.0)
-            + min(self.programas_16_96h_otros * 0.5, 1.0)
-            + min(self.cursos_ofimatica_24h * 0.5, 1.0)
+            self._puntos("programas_96h_otros", self.programas_96h_otros)
+            + self._puntos("programas_16_96h_otros", self.programas_16_96h_otros)
+            + self._puntos("cursos_ofimatica_24h", self.cursos_ofimatica_24h)
         )
 
     def puntaje_experiencia_docente(self):
-        """Bloque 5 — Anexo 13: solo pregrado (tope 3.0) y maestría (tope 1.0)."""
-        return min(self.pregrado_ciclos * 0.5, 3.0) + min(self.maestria_cursos * 0.5, 1.0)
+        return self._puntos("pregrado_ciclos", self.pregrado_ciclos) + self._puntos(
+            "maestria_cursos", self.maestria_cursos
+        )
 
     def puntaje_experiencia_profesional(self):
-        return min(self.experiencia_profesional_anios * 1.0, 6.0)
+        return self._puntos("experiencia_profesional_anios", self.experiencia_profesional_anios)
 
     def puntaje_evaluacion_curricular(self):
         return round(
@@ -662,6 +769,24 @@ class Postulante(models.Model):
             + self.puntaje_experiencia_profesional(),
             2,
         )
+
+    @classmethod
+    def maximo_bloque(cls, bloque):
+        """Suma de topes configurados para un bloque — si nada está
+        configurado todavía, suma los valores por defecto de ese bloque."""
+        claves_por_bloque = {
+            1: ["tiene_titulo_profesional", "tiene_titulo_profesional_tecnico", "tiene_maestria", "tiene_doctorado", "tiene_segunda_especialidad"],
+            2: ["diplomados_120h", "programas_16_96h_afines"],
+            3: ["ponente_eventos", "asistente_eventos", "investigaciones", "publicaciones"],
+            4: ["programas_96h_otros", "programas_16_96h_otros", "cursos_ofimatica_24h"],
+            5: ["pregrado_ciclos", "maestria_cursos"],
+            6: ["experiencia_profesional_anios"],
+        }
+        return round(sum(cls.criterio(clave)[1] for clave in claves_por_bloque[bloque]), 2)
+
+    @classmethod
+    def maximo_evaluacion_curricular(cls):
+        return round(sum(cls.maximo_bloque(b) for b in range(1, 7)), 2)
 
     def puntaje_capacidad_docente(self):
         return (

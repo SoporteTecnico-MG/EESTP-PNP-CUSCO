@@ -1298,12 +1298,12 @@ def imprimir_ficha_curricular(request, pk):
     no se imprimen acá."""
     postulante = get_object_or_404(Postulante, pk=pk)
     bloques = [
-        ("1", "Grados Académicos y Títulos Profesionales", postulante.puntaje_grados_titulos(), 20),
-        ("2", "Actualizaciones y Capacitaciones afines a la unidad didáctica", postulante.puntaje_capacitaciones(), 3),
-        ("3", "Participación en Eventos Científicos e Investigaciones", postulante.puntaje_eventos_investigacion(), 3),
-        ("4", "Otros programas de formación continua", postulante.puntaje_otros_programas(), 4),
-        ("5", "Experiencia Docente Universitaria", postulante.puntaje_experiencia_docente(), 4),
-        ("6", "Experiencia Profesional", postulante.puntaje_experiencia_profesional(), 6),
+        ("1", "Grados Académicos y Títulos Profesionales", postulante.puntaje_grados_titulos(), Postulante.maximo_bloque(1)),
+        ("2", "Actualizaciones y Capacitaciones afines a la unidad didáctica", postulante.puntaje_capacitaciones(), Postulante.maximo_bloque(2)),
+        ("3", "Participación en Eventos Científicos e Investigaciones", postulante.puntaje_eventos_investigacion(), Postulante.maximo_bloque(3)),
+        ("4", "Otros programas de formación continua", postulante.puntaje_otros_programas(), Postulante.maximo_bloque(4)),
+        ("5", "Experiencia Docente Universitaria", postulante.puntaje_experiencia_docente(), Postulante.maximo_bloque(5)),
+        ("6", "Experiencia Profesional", postulante.puntaje_experiencia_profesional(), Postulante.maximo_bloque(6)),
     ]
     return render(
         request,
@@ -1311,6 +1311,7 @@ def imprimir_ficha_curricular(request, pk):
         {
             "postulante": postulante,
             "bloques": bloques,
+            "maximo_curricular": Postulante.maximo_evaluacion_curricular(),
             "nombre_escuela_corto": NOMBRE_ESCUELA_CORTO,
             "nombre_escuela_largo": NOMBRE_ESCUELA_LARGO,
         },
