@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Especialidad(models.Model):
@@ -577,7 +577,9 @@ class Postulante(models.Model):
 
     # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
     tiene_titulo_profesional = models.BooleanField(
-        "Título Profesional Universitario / en Adm. y CC. Policiales", default=False
+        "Título Profesional (Universitario si es Civil/Extranjero — Anexo 10; "
+        "en Administración y CC. Policiales si es PNP/FFAA — Anexo 13)",
+        default=False,
     )
     tiene_titulo_profesional_tecnico = models.BooleanField(
         "Título Profesional Técnico en ciencias policiales (solo Anexo 13)", default=False
@@ -587,35 +589,65 @@ class Postulante(models.Model):
     tiene_segunda_especialidad = models.BooleanField("Segunda especialidad o título de especialista", default=False)
 
     # --- bloque 2: Actualizaciones y capacitaciones afines (máx. 3) ---
-    diplomados_120h = models.PositiveSmallIntegerField(
-        "Diplomados afines ≥120h (1.0 c/u, tope 2)", default=0
+    # Los campos de cantidad de los bloques 2 a 6 admiten decimales (p. ej.
+    # 0.5 ciclos o 1.5 cursos) — el puntaje por unidad de varios criterios
+    # ya es fraccionario (0.5), así que la cantidad digitada también debe
+    # poder serlo (media hora dictada, medio curso, etc.).
+    diplomados_120h = models.DecimalField(
+        "Diplomados afines ≥120h (1.0 c/u, tope 2)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
     )
-    programas_16_96h_afines = models.PositiveSmallIntegerField(
-        "Programas afines 16-96h (0.5 c/u, tope 2)", default=0
+    programas_16_96h_afines = models.DecimalField(
+        "Programas afines 16-96h (0.5 c/u, tope 2)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
     )
 
     # --- bloque 3: Participación en eventos científicos e investigación (máx. 3) ---
-    ponente_eventos = models.PositiveSmallIntegerField("Ponente en eventos académicos (0.5 c/u, tope 1)", default=0)
-    asistente_eventos = models.PositiveSmallIntegerField("Asistente a eventos académicos (0.5 c/u, tope 1)", default=0)
-    investigaciones = models.PositiveSmallIntegerField("Investigaciones en la especialidad (1.0 c/u, tope 1)", default=0)
-    publicaciones = models.PositiveSmallIntegerField("Textos y/o libros publicados (1.0 c/u, tope 1)", default=0)
+    ponente_eventos = models.DecimalField(
+        "Ponente en eventos académicos (0.5 c/u, tope 1)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
+    asistente_eventos = models.DecimalField(
+        "Asistente a eventos académicos (0.5 c/u, tope 1)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
+    investigaciones = models.DecimalField(
+        "Investigaciones en la especialidad (1.0 c/u, tope 1)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
+    publicaciones = models.DecimalField(
+        "Textos y/o libros publicados (1.0 c/u, tope 1)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
 
     # --- bloque 4: Otros programas de formación continua (máx. 4) ---
-    programas_96h_otros = models.PositiveSmallIntegerField("Programas ≥96h (1.0 c/u, tope 2)", default=0)
-    programas_16_96h_otros = models.PositiveSmallIntegerField("Programas 16-96h (0.5 c/u, tope 2)", default=0)
-    cursos_ofimatica_24h = models.PositiveSmallIntegerField("Cursos de ofimática ≥24h (0.5 c/u, tope 2)", default=0)
+    programas_96h_otros = models.DecimalField(
+        "Programas ≥96h (1.0 c/u, tope 2)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
+    programas_16_96h_otros = models.DecimalField(
+        "Programas 16-96h (0.5 c/u, tope 2)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
+    cursos_ofimatica_24h = models.DecimalField(
+        "Cursos de ofimática ≥24h (0.5 c/u, tope 2)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
+    )
 
     # --- bloque 5: Experiencia docente universitaria (máx. 4) ---
-    pregrado_ciclos = models.PositiveSmallIntegerField(
-        "Docencia nivel pregrado, en ciclos (0.5 c/ciclo)", default=0
+    pregrado_ciclos = models.DecimalField(
+        "Docencia nivel pregrado, en ciclos (0.5 c/ciclo)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
     )
-    maestria_cursos = models.PositiveSmallIntegerField(
-        "Docencia posgrado Maestría, en cursos (0.5 c/curso, tope 1)", default=0
+    maestria_cursos = models.DecimalField(
+        "Docencia posgrado Maestría, en cursos (0.5 c/curso, tope 1)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
     )
 
     # --- bloque 6: Experiencia profesional (máx. 6) ---
-    experiencia_profesional_anios = models.PositiveSmallIntegerField(
-        "Ejercicio profesional no docente, en años (1.0 c/año, tope 6)", default=0
+    experiencia_profesional_anios = models.DecimalField(
+        "Ejercicio profesional no docente, en años (1.0 c/año, tope 6)",
+        max_digits=5, decimal_places=2, default=0, validators=[MinValueValidator(0)],
     )
 
     # --- Capacidad Docente (Anexo 11, máx. 35: 5 bloques de 0 a 7) ---
@@ -685,11 +717,18 @@ class Postulante(models.Model):
     # escala real.
 
     _DEFAULTS_CRITERIOS = {
-        "tiene_titulo_profesional": (5.0, 5.0),
-        "tiene_titulo_profesional_tecnico": (4.0, 4.0),
-        "tiene_maestria": (6.0, 6.0),
-        "tiene_doctorado": (6.0, 6.0),
-        "tiene_segunda_especialidad": (5.0, 5.0),
+        # Título profesional: es UNA sola línea/casilla, pero el puntaje que
+        # otorga depende de la Procedencia — Anexo 10 (civil/extranjero) da
+        # menos que el Anexo 13 (PNP/FFAA). No se suman los dos, se usa uno
+        # u otro según corresponda (ver puntaje_grados_titulos). El tope del
+        # bloque muestra el valor del Anexo 13 (prioridad), por eso solo
+        # "tiene_titulo_profesional" entra en la suma de maximo_bloque(1).
+        "tiene_titulo_profesional": (5.0, 5.0),  # Anexo 13 — PNP/FFAA
+        "tiene_titulo_universitario": (4.0, 4.0),  # Anexo 10 — Civil/Extranjero
+        "tiene_titulo_profesional_tecnico": (3.0, 3.0),
+        "tiene_maestria": (4.0, 4.0),
+        "tiene_doctorado": (5.0, 5.0),
+        "tiene_segunda_especialidad": (3.0, 3.0),
         "diplomados_120h": (1.0, 2.0),
         "programas_16_96h_afines": (0.5, 1.0),
         "ponente_eventos": (0.5, 0.5),
@@ -715,12 +754,15 @@ class Postulante(models.Model):
 
     def _puntos(self, clave, cantidad):
         unidad, tope = self.criterio(clave)
-        return min(cantidad * unidad, tope)
+        return min(float(cantidad) * unidad, tope)
 
     def puntaje_grados_titulos(self):
         total = 0
         if self.tiene_titulo_profesional:
-            total += self._puntos("tiene_titulo_profesional", 1)
+            if self.procedencia in (self.Procedencia.PNP, self.Procedencia.FFAA):
+                total += self._puntos("tiene_titulo_profesional", 1)
+            else:
+                total += self._puntos("tiene_titulo_universitario", 1)
         if self.tiene_titulo_profesional_tecnico:
             total += self._puntos("tiene_titulo_profesional_tecnico", 1)
         if self.tiene_maestria:

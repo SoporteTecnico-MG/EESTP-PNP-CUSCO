@@ -1,5 +1,4 @@
 import json
-import math
 from urllib.parse import urlencode
 
 from django import forms
@@ -652,7 +651,7 @@ class PostulanteForm(forms.ModelForm):
             "procedencia": forms.Select(attrs={"data-role": "procedencia-select"}),
             "dni": forms.TextInput(attrs={"data-role": "dni-input"}),
             **{
-                campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0"})
+                campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0", "step": "0.5"})
                 for campo in _CAMPOS_CONTEO_PUNTAJE
             },
         }
@@ -660,11 +659,12 @@ class PostulanteForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Límite real en el campo: no tiene sentido digitar más unidades de
-        # las que ya saturan el tope de ese criterio.
+        # las que ya saturan el tope de ese criterio. Se acepta cualquier
+        # decimal (0.5 horas, medio curso, etc.), no solo enteros.
         for campo in _CAMPOS_CONTEO_PUNTAJE:
             unidad, tope = models.Postulante.criterio(campo)
             if unidad > 0:
-                self.fields[campo].widget.attrs["max"] = math.ceil(tope / unidad)
+                self.fields[campo].widget.attrs["max"] = tope / unidad
 
 
 @admin.register(models.Postulante, site=proceso_docente_site)
