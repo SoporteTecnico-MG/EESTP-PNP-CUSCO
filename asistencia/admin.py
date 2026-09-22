@@ -574,15 +574,31 @@ class RegistroActividadAdmin(admin.ModelAdmin):
         return False
 
 
+class UnidadDidacticaConvocatoriaInline(admin.TabularInline):
+    """Las unidades didácticas (plazas) se cargan aquí mismo, tal como
+    figuran en el documento real de la convocatoria — varían de una
+    convocatoria a otra, por eso no se reutiliza el catálogo general de
+    Cursos."""
+
+    model = models.UnidadDidacticaConvocatoria
+    extra = 1
+    fields = ("nombre", "especialidad_funcional", "perfil_profesional")
+
+
 @admin.register(models.Convocatoria, site=proceso_docente_site)
 class ConvocatoriaAdmin(admin.ModelAdmin):
     """Catálogo de convocatorias — se maneja aparte para que el campo
     "Convocatoria" del postulante sea un desplegable (son pocas) en vez de
     texto libre."""
 
-    list_display = ("nombre", "fecha_inicio", "fecha_fin")
+    list_display = ("nombre", "fecha_inicio", "fecha_fin", "cantidad_unidades")
     search_fields = ("nombre",)
     ordering = ("-fecha_inicio", "nombre")
+    inlines = [UnidadDidacticaConvocatoriaInline]
+
+    @admin.display(description="Unidades didácticas")
+    def cantidad_unidades(self, obj):
+        return obj.unidades_didacticas.count()
 
 
 @admin.register(models.Postulante, site=proceso_docente_site)

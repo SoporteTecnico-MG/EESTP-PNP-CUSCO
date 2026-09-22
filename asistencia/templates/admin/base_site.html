@@ -22,6 +22,19 @@
         color: #22302b !important;
         background: #fff !important;
     }
+    /* Los campos de un formulario normal (fuera de listados/inlines) se
+       quedaban con el ancho mínimo del navegador — angostos, con el texto
+       de las opciones largas cortado, y dejando vacía la mayor parte de la
+       pantalla en monitores anchos. Se les da un ancho cómodo real. */
+    .aligned .form-row select:not(.admin-autocomplete),
+    .aligned .form-row input[type="text"],
+    .aligned .form-row input[type="number"],
+    .aligned .form-row input[type="email"],
+    .aligned .form-row input[type="url"],
+    .aligned .form-row textarea {
+        width: 100%;
+        max-width: 520px;
+    }
     div.breadcrumbs { font-size: 13px; }
     h1, h2, h2 a { font-size: 1.3em; }
 

@@ -400,7 +400,12 @@ def registrar_actividad(request, accion, detalle=""):
 class Convocatoria(models.Model):
     """Catálogo de convocatorias — son pocas y se repiten como filtro en cada
     postulante, así que se manejan aparte en vez de escribirlas a mano cada
-    vez (evita variantes tipo '2026-II' vs '2026 - II' vs 'II-2026')."""
+    vez (evita variantes tipo '2026-II' vs '2026 - II' vs 'II-2026').
+
+    Cada convocatoria trae su propia lista de unidades didácticas (plazas) —
+    varían de una convocatoria a otra y no siempre coinciden con el catálogo
+    general de Cursos, así que se cargan aparte (ver UnidadDidacticaConvocatoria)
+    en vez de reutilizar ese catálogo."""
 
     nombre = models.CharField(max_length=100, unique=True, help_text="Ej. 2026-II, Semestre I 2026, etc.")
     fecha_inicio = models.DateField(null=True, blank=True)
@@ -413,6 +418,31 @@ class Convocatoria(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class UnidadDidacticaConvocatoria(models.Model):
+    """Una plaza/unidad didáctica ofrecida en una Convocatoria específica —
+    tal como aparece en el documento real de la convocatoria (nombre,
+    especialidad funcional y perfil profesional exigido), no el catálogo
+    general de Cursos usado para horarios."""
+
+    convocatoria = models.ForeignKey(Convocatoria, on_delete=models.CASCADE, related_name="unidades_didacticas")
+    nombre = models.CharField(max_length=200)
+    especialidad_funcional = models.CharField(
+        max_length=150, blank=True,
+        help_text="Ej. Orden Público y Seguridad, Investigación Criminal, o en blanco si es común.",
+    )
+    perfil_profesional = models.TextField(
+        blank=True, help_text="Requisitos de perfil tal como figuran en la convocatoria (opcional, solo referencia).",
+    )
+
+    class Meta:
+        verbose_name = "Unidad didáctica de la convocatoria"
+        verbose_name_plural = "Unidades didácticas de la convocatoria"
+        ordering = ["convocatoria", "especialidad_funcional", "nombre"]
+
+    def __str__(self):
+        return f"{self.nombre} ({self.convocatoria})"
 
 
 class Postulante(models.Model):
@@ -462,8 +492,8 @@ class Postulante(models.Model):
     grado = models.CharField(max_length=15, choices=Grado.choices, default=Grado.CIVIL)
     procedencia = models.CharField(max_length=12, choices=Procedencia.choices, default=Procedencia.CIVIL)
     unidad_didactica = models.ForeignKey(
-        "Curso", on_delete=models.PROTECT, related_name="postulantes",
-        verbose_name="Unidad didáctica / curso al que postula",
+        UnidadDidacticaConvocatoria, on_delete=models.PROTECT, related_name="postulantes",
+        verbose_name="Unidad didáctica a la que postula",
     )
     convocatoria = models.ForeignKey(
         Convocatoria, on_delete=models.PROTECT, related_name="postulantes",
