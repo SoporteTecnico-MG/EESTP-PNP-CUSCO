@@ -1,0 +1,117 @@
+{% extends "admin/change_form.html" %}
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Formulario del Postulante en formato de tarjetas por sección, con la
+       etiqueta arriba del campo — más fácil de leer que la tabla apretada
+       por defecto del admin, y sigue exactamente el orden de las etapas
+       del Manual (datos → grados y títulos → capacitaciones → ... ). */
+    .model-postulante #content-main { max-width: 760px; margin: 0 auto; }
+    .model-postulante #content-related { display: none; }
+
+    .model-postulante fieldset.module.aligned {
+        background: #fff;
+        border: 1px solid var(--hairline-color) !important;
+        border-radius: .8rem !important;
+        box-shadow: 0 1px 3px rgba(13,59,46,.06);
+        padding: 1.6rem 1.8rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .model-postulante fieldset.module.aligned h2.fieldset-heading {
+        background: none !important;
+        color: var(--secondary) !important;
+        padding: 0 0 .6rem !important;
+        margin: 0 0 1.3rem !important;
+        font-size: 1.05rem;
+        font-weight: 700;
+        border-bottom: 2px solid var(--accent);
+        display: inline-block;
+    }
+
+    .model-postulante .form-row {
+        border: none !important;
+        padding: 0 !important;
+        margin-bottom: 1.3rem !important;
+    }
+    .model-postulante .form-row:last-child { margin-bottom: 0 !important; }
+
+    .model-postulante .flex-container {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: .35rem;
+    }
+    .model-postulante .flex-container.checkbox-row {
+        flex-direction: row;
+        align-items: center;
+        gap: .5rem;
+    }
+
+    .model-postulante .form-row label {
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--body-quiet-color);
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
+    .model-postulante .form-row .checkbox-row label {
+        text-transform: none;
+        font-size: .88rem;
+        font-weight: 500;
+    }
+
+    .model-postulante .form-row input[type="text"],
+    .model-postulante .form-row input[type="number"],
+    .model-postulante .form-row input[type="email"],
+    .model-postulante .form-row select,
+    .model-postulante .form-row textarea {
+        border: 1.5px solid var(--border-color) !important;
+        border-radius: .55rem !important;
+        padding: .7rem .85rem !important;
+        transition: border-color .15s;
+        max-width: 100% !important;
+    }
+    .model-postulante .form-row input:focus,
+    .model-postulante .form-row select:focus,
+    .model-postulante .form-row textarea:focus {
+        border-color: var(--primary) !important;
+        outline: none;
+    }
+
+    .model-postulante div.readonly {
+        padding: .6rem 0 0 !important;
+        font-size: .95rem;
+    }
+
+    .model-postulante .submit-row {
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        display: flex;
+        gap: .7rem;
+        padding: 0;
+        margin-top: .5rem;
+    }
+    .model-postulante .submit-row input.default {
+        background: var(--primary) !important;
+        border-radius: .6rem !important;
+        padding: .8rem 1.6rem !important;
+        font-weight: 700 !important;
+        font-size: .92rem !important;
+        flex: 1;
+    }
+    .model-postulante .submit-row input:not(.default) {
+        background: #fff !important;
+        color: var(--secondary) !important;
+        border: 1.5px solid var(--border-color) !important;
+        border-radius: .6rem !important;
+        padding: .8rem 1.2rem !important;
+        font-size: .85rem !important;
+    }
+
+    @media (max-width: 820px) {
+        .model-postulante #content-main { max-width: 100%; }
+    }
+</style>
+{% endblock %}
