@@ -96,7 +96,7 @@
     <h2>Accesos rápidos</h2>
     <div class="grid-accesos">
         {% if user.is_authenticated and user.is_staff %}
-        <a href="{% url 'controldocentes:calendario_asistencia' %}" class="card-acceso">
+        <a href="{% url 'controldocentes:index' %}" class="card-acceso">
             <h3>Control Docentes →</h3>
             <p>Asistencia biométrica, horarios y gestión académica del personal docente.</p>
         </a>
