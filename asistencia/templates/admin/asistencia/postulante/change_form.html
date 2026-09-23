@@ -33,6 +33,12 @@
         column-gap: 2.5rem;
         justify-content: center;
         align-items: start;
+        background: #fff;
+        border: 1px solid var(--hairline-color) !important;
+        border-radius: .8rem !important;
+        box-shadow: 0 1px 3px rgba(13,59,46,.06);
+        padding: 1.6rem 1.8rem;
+        margin-bottom: 1.4rem;
     }
     .model-postulante fieldset.module.aligned h2.fieldset-heading,
     .model-postulante fieldset.module.aligned .form-row.field-postula_a_otro_curso_misma_convocatoria,
@@ -63,15 +69,6 @@
     }
     .pd-dni-aviso-ok { color: #1c5c33; font-weight: 600; }
     .pd-dni-aviso-nuevo { color: #8a6d1a; font-weight: 600; }
-
-    .model-postulante fieldset.module.aligned {
-        background: #fff;
-        border: 1px solid var(--hairline-color) !important;
-        border-radius: .8rem !important;
-        box-shadow: 0 1px 3px rgba(13,59,46,.06);
-        padding: 1.6rem 1.8rem;
-        margin-bottom: 1.4rem;
-    }
 
     .model-postulante fieldset.module.aligned h2.fieldset-heading {
         background: none !important;
@@ -119,13 +116,35 @@
     .model-postulante .form-row input[type="text"],
     .model-postulante .form-row input[type="number"],
     .model-postulante .form-row input[type="email"],
-    .model-postulante .form-row select,
     .model-postulante .form-row textarea {
         border: 1.5px solid var(--border-color) !important;
         border-radius: .55rem !important;
         padding: .7rem .85rem !important;
         transition: border-color .15s;
         max-width: 100% !important;
+    }
+    /* El <select> va aparte: el mismo padding grande que a los inputs le
+       hacía mostrar el texto cortado (el navegador no agranda el cuadro
+       nativo al mismo ritmo que el padding) — con appearance:none y una
+       flecha propia, el cuadro sí crece con el padding y el texto entra
+       completo, sin cortarse. */
+    .model-postulante .form-row select {
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        border: 1.5px solid var(--border-color) !important;
+        border-radius: .55rem !important;
+        padding: .55rem 2.2rem .55rem .85rem !important;
+        line-height: 1.4;
+        min-height: 2.6rem;
+        max-width: 100% !important;
+        transition: border-color .15s;
+        background-color: #fff;
+        background-image: linear-gradient(45deg, transparent 50%, var(--body-quiet-color) 50%),
+                           linear-gradient(135deg, var(--body-quiet-color) 50%, transparent 50%);
+        background-position: right 1.1rem center, right .75rem center;
+        background-size: 6px 6px, 6px 6px;
+        background-repeat: no-repeat;
     }
     .model-postulante .form-row input:focus,
     .model-postulante .form-row select:focus,
