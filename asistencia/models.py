@@ -575,30 +575,21 @@ class Postulante(models.Model):
         "También puedes seleccionarlo a mano si hace falta — nunca se vincula por nombre parecido.",
     )
 
-    class TipoTituloProfesional(models.TextChoices):
-        UNIVERSITARIO = "UNIVERSITARIO", "Universitario (Anexo 10 — 4 pts)"
-        POLICIAL = "POLICIAL", "Administración y CC. Policiales (Anexo 13 — 5 pts)"
-
     # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
+    # Las 4 líneas de acá son exactamente las de la Hoja de Vida oficial
+    # (Evaluación de la Hoja de Vida de Postulantes a Plaza de Docentes):
+    # cada una es una sola casilla con un solo puntaje, no hay que elegir
+    # variante ni Anexo — el propio enunciado ya cubre ambos casos.
     tiene_titulo_profesional = models.BooleanField(
-        "Título Profesional",
-        default=False,
+        "Título Profesional en Administración y Ciencias Policiales", default=False
     )
-    tipo_titulo_profesional = models.CharField(
-        "Tipo de título profesional",
-        max_length=15,
-        choices=TipoTituloProfesional.choices,
-        default=TipoTituloProfesional.UNIVERSITARIO,
-        blank=True,
-        help_text="Solo si marcaste \"Título Profesional\": elige con qué puntaje se califica "
-        "— Universitario (Anexo 10) o en Administración y CC. Policiales (Anexo 13).",
+    tiene_titulo_tecnico_o_civil = models.BooleanField(
+        "Título profesional Técnico en ciencias policiales / profesional civil", default=False
     )
-    tiene_titulo_profesional_tecnico = models.BooleanField(
-        "Título Profesional Técnico en ciencias policiales (solo Anexo 13)", default=False
+    tiene_maestria_o_doctorado = models.BooleanField("Grado académico de Maestro/Doctor", default=False)
+    tiene_segunda_especialidad = models.BooleanField(
+        "Segunda Especialidad o Título de Especialista de acuerdo a la naturaleza de la UD", default=False
     )
-    tiene_maestria = models.BooleanField("Grado académico de Maestro", default=False)
-    tiene_doctorado = models.BooleanField("Grado académico de Doctor", default=False)
-    tiene_segunda_especialidad = models.BooleanField("Segunda especialidad o título de especialista", default=False)
 
     # --- bloque 2: Actualizaciones y capacitaciones afines (máx. 3) ---
     # Los campos de cantidad de los bloques 2 a 6 admiten decimales (p. ej.
@@ -695,6 +686,9 @@ class Postulante(models.Model):
     ep_personalidad = models.PositiveSmallIntegerField(
         "Personalidad", default=0, validators=[MaxValueValidator(5)]
     )
+    observaciones_entrevista = models.TextField(
+        "Observaciones de la Entrevista Personal", blank=True,
+    )
 
     class Meta:
         verbose_name = "Postulante (calificación docente)"
@@ -745,19 +739,12 @@ class Postulante(models.Model):
     # escala real.
 
     _DEFAULTS_CRITERIOS = {
-        # Título profesional: es UNA sola línea/casilla, pero el puntaje que
-        # otorga depende de tipo_titulo_profesional (elegido a mano) —
-        # Anexo 10 (Universitario) da menos que el Anexo 13 (Administración
-        # y CC. Policiales). No se suman los dos, se usa uno u otro según
-        # corresponda (ver puntaje_grados_titulos). El tope del
-        # bloque muestra el valor del Anexo 13 (prioridad), por eso solo
-        # "tiene_titulo_profesional" entra en la suma de maximo_bloque(1).
-        "tiene_titulo_profesional": (5.0, 5.0),  # Anexo 13 — PNP/FFAA
-        "tiene_titulo_universitario": (4.0, 4.0),  # Anexo 10 — Civil/Extranjero
-        "tiene_titulo_profesional_tecnico": (3.0, 3.0),
-        "tiene_maestria": (4.0, 4.0),
-        "tiene_doctorado": (5.0, 5.0),
-        "tiene_segunda_especialidad": (3.0, 3.0),
+        # Estos 4 puntajes son los de la Hoja de Vida oficial (Evaluación
+        # de la Hoja de Vida de Postulantes a Plaza de Docentes): 5+4+6+5=20.
+        "tiene_titulo_profesional": (5.0, 5.0),
+        "tiene_titulo_tecnico_o_civil": (4.0, 4.0),
+        "tiene_maestria_o_doctorado": (6.0, 6.0),
+        "tiene_segunda_especialidad": (5.0, 5.0),
         "diplomados_120h": (1.0, 2.0),
         "programas_16_96h_afines": (0.5, 1.0),
         "ponente_eventos": (0.5, 0.5),
@@ -788,16 +775,11 @@ class Postulante(models.Model):
     def puntaje_grados_titulos(self):
         total = 0
         if self.tiene_titulo_profesional:
-            if self.tipo_titulo_profesional == self.TipoTituloProfesional.POLICIAL:
-                total += self._puntos("tiene_titulo_profesional", 1)
-            else:
-                total += self._puntos("tiene_titulo_universitario", 1)
-        if self.tiene_titulo_profesional_tecnico:
-            total += self._puntos("tiene_titulo_profesional_tecnico", 1)
-        if self.tiene_maestria:
-            total += self._puntos("tiene_maestria", 1)
-        if self.tiene_doctorado:
-            total += self._puntos("tiene_doctorado", 1)
+            total += self._puntos("tiene_titulo_profesional", 1)
+        if self.tiene_titulo_tecnico_o_civil:
+            total += self._puntos("tiene_titulo_tecnico_o_civil", 1)
+        if self.tiene_maestria_o_doctorado:
+            total += self._puntos("tiene_maestria_o_doctorado", 1)
         if self.tiene_segunda_especialidad:
             total += self._puntos("tiene_segunda_especialidad", 1)
         return total
@@ -846,7 +828,7 @@ class Postulante(models.Model):
         """Suma de topes configurados para un bloque — si nada está
         configurado todavía, suma los valores por defecto de ese bloque."""
         claves_por_bloque = {
-            1: ["tiene_titulo_profesional", "tiene_titulo_profesional_tecnico", "tiene_maestria", "tiene_doctorado", "tiene_segunda_especialidad"],
+            1: ["tiene_titulo_profesional", "tiene_titulo_tecnico_o_civil", "tiene_maestria_o_doctorado", "tiene_segunda_especialidad"],
             2: ["diplomados_120h", "programas_16_96h_afines"],
             3: ["ponente_eventos", "asistente_eventos", "investigaciones", "publicaciones"],
             4: ["programas_96h_otros", "programas_16_96h_otros", "cursos_ofimatica_24h"],
@@ -902,11 +884,9 @@ class Postulante(models.Model):
 
     def grado_academico_nivel(self):
         """Para el criterio de desempate 'mayor grado académico'."""
-        if self.tiene_doctorado:
-            return 3
-        if self.tiene_maestria:
+        if self.tiene_maestria_o_doctorado:
             return 2
-        if self.tiene_titulo_profesional or self.tiene_titulo_profesional_tecnico:
+        if self.tiene_titulo_profesional or self.tiene_titulo_tecnico_o_civil:
             return 1
         return 0
 

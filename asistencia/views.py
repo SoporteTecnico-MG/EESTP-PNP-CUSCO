@@ -1299,27 +1299,103 @@ def imprimir_ficha_curricular(request, pk):
     Personal (Anexo 12) — las tres etapas, cada una con su puntaje y su
     mínimo aprobatorio, no solo el currículum."""
     postulante = get_object_or_404(Postulante, pk=pk)
+
+    # Estructura y textos exactamente como la Hoja de Vida oficial
+    # (Evaluación de la Hoja de Vida de Postulantes a Plaza de Docentes):
+    # cada bloque es (título, [(descripción, puntaje específico, máximo, obtenido)]).
     bloques = [
-        ("1", "Grados Académicos y Títulos Profesionales", postulante.puntaje_grados_titulos(), Postulante.maximo_bloque(1)),
-        ("2", "Actualizaciones y Capacitaciones afines a la unidad didáctica", postulante.puntaje_capacitaciones(), Postulante.maximo_bloque(2)),
-        ("3", "Participación en Eventos Científicos e Investigaciones", postulante.puntaje_eventos_investigacion(), Postulante.maximo_bloque(3)),
-        ("4", "Otros programas de formación continua", postulante.puntaje_otros_programas(), Postulante.maximo_bloque(4)),
-        ("5", "Experiencia Docente Universitaria", postulante.puntaje_experiencia_docente(), Postulante.maximo_bloque(5)),
-        ("6", "Experiencia Profesional", postulante.puntaje_experiencia_profesional(), Postulante.maximo_bloque(6)),
+        ("1", "Grados Académicos y Títulos Profesionales", [
+            ("Título Profesional en Administración y Ciencias Policiales", "", 5,
+             postulante._puntos("tiene_titulo_profesional", 1) if postulante.tiene_titulo_profesional else 0),
+            ("Título profesional Técnico en ciencias policiales / profesional civil", "", 4,
+             postulante._puntos("tiene_titulo_tecnico_o_civil", 1) if postulante.tiene_titulo_tecnico_o_civil else 0),
+            ("Grado académico de Maestro/Doctor", "", 6,
+             postulante._puntos("tiene_maestria_o_doctorado", 1) if postulante.tiene_maestria_o_doctorado else 0),
+            ("Segunda Especialidad o Título de Especialista de acuerdo a la naturaleza de la UD", "", 5,
+             postulante._puntos("tiene_segunda_especialidad", 1) if postulante.tiene_segunda_especialidad else 0),
+        ]),
+        ("2", "Actualizaciones y Capacitaciones afines a la unidad didáctica / asignatura", [
+            ("Curso de especialización de la unidad a la que postula, con duración igual o mayor a 120 horas o equivalente en créditos.",
+             "1.0 c/u", 2, postulante._puntos("diplomados_120h", postulante.diplomados_120h)),
+            ("Curso de capacitación o programas con duración igual o mayor a 16 horas y hasta 96 horas o equivalente en créditos.",
+             "0.5 c/u", 1, postulante._puntos("programas_16_96h_afines", postulante.programas_16_96h_afines)),
+        ]),
+        ("3", "Participación en Eventos Académicos e Investigaciones", [
+            ("Ponente en eventos académicos", "0.5 c/u", 0.5, postulante._puntos("ponente_eventos", postulante.ponente_eventos)),
+            ("Asistente a eventos académicos", "0.5 c/u", 0.5, postulante._puntos("asistente_eventos", postulante.asistente_eventos)),
+            ("Investigaciones en la especialidad", "1.0 c/u", 1, postulante._puntos("investigaciones", postulante.investigaciones)),
+            ("Textos y/o libros publicados", "1.0 c/u", 1, postulante._puntos("publicaciones", postulante.publicaciones)),
+        ]),
+        ("4", "Otros programas de formación continua, incluyendo temas de pedagogía o investigación e idiomas", [
+            ("Programas con duración igual o mayor a 96 horas su equivalente en créditos.", "1.0 c/u", 2,
+             postulante._puntos("programas_96h_otros", postulante.programas_96h_otros)),
+            ("Programas con duración igual o mayor a 16 horas y hasta 96 horas su equivalente en créditos.", "0.5 c/u", 1,
+             postulante._puntos("programas_16_96h_otros", postulante.programas_16_96h_otros)),
+            ("Cursos de ofimática o mayores a 24 horas su equivalente en créditos.", "0.5 c/u", 1,
+             postulante._puntos("cursos_ofimatica_24h", postulante.cursos_ofimatica_24h)),
+        ]),
+        ("5", "Experiencia Docente", [
+            ("Nivel pregrado (por ciclo académico)", "0.5 c/ciclo", 3, postulante._puntos("pregrado_ciclos", postulante.pregrado_ciclos)),
+            ("Nivel postgrado (por curso)", "0.5 c/curso", 1, postulante._puntos("maestria_cursos", postulante.maestria_cursos)),
+        ]),
+        ("6", "Experiencia Profesional", [
+            ("Ejercicio profesional no docente acreditado", "1.0 c/año", 6,
+             postulante._puntos("experiencia_profesional_anios", postulante.experiencia_profesional_anios)),
+        ]),
     ]
+
+    # (descripción, [preguntas/criterios de la rúbrica], puntaje obtenido)
     capacidad_docente = [
-        ("Planificación y evaluación de sesiones", postulante.cd_planificacion),
-        ("Dominio pedagógico", postulante.cd_dominio_pedagogico),
-        ("Dominio técnico", postulante.cd_dominio_tecnico),
-        ("Comunicación efectiva", postulante.cd_comunicacion),
-        ("Uso de recursos tecnológicos", postulante.cd_recursos_tecnologicos),
+        ("Planificación y Evaluación de las Sesiones de Aprendizaje", [
+            "Plan de clase: establece los objetivos o logros a alcanzar en la sesión de aprendizaje.",
+            "Desarrolla la sesión de manera articulada con los tres momentos.",
+        ], postulante.cd_planificacion),
+        ("Dominio Pedagógico", [
+            "Desarrolla el contenido con coherencia, claridad y precisión.",
+            "Organiza el tiempo.",
+            "Relaciona los conocimientos nuevos con los saberes previos.",
+            "Desarrolla una clase dinámica y participativa.",
+        ], postulante.cd_dominio_pedagogico),
+        ("Dominio Técnico", [
+            "Demuestra dominio del tema.",
+            "Maneja contenidos actualizados.",
+            "Traslada a la práctica los conocimientos teóricos a través de casos simulados.",
+        ], postulante.cd_dominio_tecnico),
+        ("Comunicación Efectiva", [
+            "Se comunica en forma clara y organizada.",
+            "El lenguaje corporal se relaciona con el mensaje que trasmite.",
+            "Aclara dudas y responde a las preguntas sobre la materia tratada.",
+        ], postulante.cd_comunicacion),
+        ("Uso de Recursos Tecnológicos", [
+            "Selecciona recursos tecnológicos y materiales educativos acorde a la temática.",
+            "Demuestra dominio en el uso de recursos tecnológicos.",
+        ], postulante.cd_recursos_tecnologicos),
     ]
     entrevista_personal = [
-        ("Proceso de enseñanza-aprendizaje", postulante.ep_proceso_ensenanza),
-        ("Desarrollo institucional", postulante.ep_desarrollo_institucional),
-        ("Especialidad y experiencia", postulante.ep_especialidad_experiencia),
-        ("Investigación e innovación", postulante.ep_investigacion_innovacion),
-        ("Personalidad", postulante.ep_personalidad),
+        ("Proceso de enseñanza y aprendizaje", [
+            "Manejo y exposición de conocimientos complementarios y relativos al puesto.",
+            "Exposición de ideas y sustentación de información y conocimientos complementarios y relativos "
+            "a la experiencia laboral y el manejo de conocimientos necesarios para la posición docente.",
+        ], postulante.ep_proceso_ensenanza),
+        ("Desarrollo institucional", [
+            "¿Ha participado o participa en proyectos institucionales donde ha realizado emprendimientos "
+            "asociados a la especialidad a la cual postuló?, ¿de qué tipo?, cite un caso.",
+            "¿De qué manera es posible articular las competencias con las necesidades del servicio policial?, cite un ejemplo.",
+        ], postulante.ep_desarrollo_institucional),
+        ("Especialidad y experiencia", [
+            "¿Con qué frecuencia se actualiza y obtiene información útil en su especialidad?",
+            "¿Qué mecanismos podría utilizar para generar vínculos con organizaciones relacionadas a su "
+            "especialidad y lograr su involucramiento?",
+        ], postulante.ep_especialidad_experiencia),
+        ("Investigación e innovación", [
+            "¿Ha participado o participa en proyectos de investigación científica o aplicada?",
+            "¿Participa en redes de profesionales investigadores vinculadas al programa de estudios donde postula?",
+        ], postulante.ep_investigacion_innovacion),
+        ("Personalidad", [
+            "Comportamiento en general, características o cualidades del candidato que destacan.",
+            "Extroversión personal y capacidad para desenvolverse en una situación de entrevista, "
+            "muchas risas, exceso de preocupación o seriedad, tics.",
+        ], postulante.ep_personalidad),
     ]
     return render(
         request,

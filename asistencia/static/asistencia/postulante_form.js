@@ -32,13 +32,7 @@
     function initCalculadoraPuntos() {
         const criterios = window.CRITERIOS_PUNTAJE;
         if (!criterios) return;
-        // "tiene_titulo_universitario" no tiene campo propio en el
-        // formulario — es la MISMA casilla "tiene_titulo_profesional",
-        // solo que con el puntaje del Anexo 10 en vez del Anexo 13 (según
-        // lo que se elija en el select "Tipo de título profesional"). Se
-        // maneja aparte y se excluye del recorrido genérico para no
-        // sumarlo dos veces ni inflar el máximo total.
-        const claves = Object.keys(criterios).filter(function (c) { return c !== "tiene_titulo_universitario"; });
+        const claves = Object.keys(criterios);
 
         const total = document.createElement("div");
         total.id = "pd-total-flotante";
@@ -61,23 +55,9 @@
             return badge;
         }
 
-        function puntosTituloProfesional() {
-            const checkbox = document.getElementById("id_tiene_titulo_profesional");
-            if (!checkbox) return 0;
-            const tipo = document.getElementById("id_tipo_titulo_profesional");
-            const esPolicial = tipo && tipo.value === "POLICIAL";
-            const cfg = esPolicial ? criterios["tiene_titulo_profesional"] : criterios["tiene_titulo_universitario"];
-            const puntos = checkbox.checked ? cfg.tope : 0;
-            const badge = badgeDe(checkbox);
-            badge.textContent = fmt(puntos) + " / " + fmt(cfg.tope);
-            badge.classList.toggle("pd-badge-tope", puntos >= cfg.tope && cfg.tope > 0);
-            return puntos;
-        }
-
         function recalcular() {
-            let sumaTotal = puntosTituloProfesional();
+            let sumaTotal = 0;
             claves.forEach(function (clave) {
-                if (clave === "tiene_titulo_profesional") return;
                 const campo = document.getElementById("id_" + clave);
                 if (!campo) return;
                 const cfg = criterios[clave];
@@ -102,8 +82,6 @@
             campo.addEventListener("input", recalcular);
             campo.addEventListener("change", recalcular);
         });
-        const tipoTitulo = document.getElementById("id_tipo_titulo_profesional");
-        if (tipoTitulo) tipoTitulo.addEventListener("change", recalcular);
 
         recalcular();
     }

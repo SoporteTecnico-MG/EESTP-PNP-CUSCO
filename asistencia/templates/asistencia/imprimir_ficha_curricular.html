@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Evaluación Curricular — {{ postulante.nombre_completo }}</title>
+<title>Evaluación — {{ postulante.nombre_completo }}</title>
 <style>
     * { box-sizing: border-box; }
     body {
@@ -10,132 +10,104 @@
         color: #111;
         margin: 0;
         padding: 1.5rem 2rem;
-        font-size: 13px;
+        font-size: 12px;
     }
-    .hoja { max-width: 900px; margin: 0 auto; }
-    .barra-no-imprimir {
-        text-align: right;
-        margin-bottom: 1rem;
-    }
+    .hoja { max-width: 950px; margin: 0 auto 2.5rem; }
+    .barra-no-imprimir { text-align: right; margin-bottom: 1rem; }
     .barra-no-imprimir button {
-        background: #16543f;
-        color: #fff;
-        border: none;
-        padding: .5rem 1.1rem;
-        border-radius: .3rem;
-        font-size: .85rem;
-        cursor: pointer;
+        background: #16543f; color: #fff; border: none;
+        padding: .5rem 1.1rem; border-radius: .3rem; font-size: .85rem; cursor: pointer;
     }
-    .encabezado { text-align: center; margin-bottom: 1.4rem; }
-    .encabezado .institucion { font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: .02em; }
-    .encabezado .escuela { font-size: .92rem; font-weight: 600; margin-top: .1rem; }
-    .encabezado .anexo { font-size: .8rem; color: #444; margin-top: .3rem; }
+
     .titulo-ficha {
         text-align: center;
         font-weight: 700;
-        font-size: 1.05rem;
+        font-size: .95rem;
         text-transform: uppercase;
-        border-top: 2px solid #111;
-        border-bottom: 2px solid #111;
-        padding: .5rem 0;
-        margin-bottom: 1.2rem;
+        border: 2px solid #111;
+        padding: .5rem .8rem;
+        margin-bottom: 0;
     }
 
-    table.datos { width: 100%; border-collapse: collapse; margin-bottom: 1.4rem; }
-    table.datos td {
-        border: 1px solid #111;
-        padding: .4rem .6rem;
-        font-size: .85rem;
-    }
-    table.datos td.etiqueta { font-weight: 700; background: #f0f0f0; width: 22%; }
+    table.datos { width: 100%; border-collapse: collapse; margin-bottom: 0; border: 2px solid #111; border-top: none; }
+    table.datos td { border: 1px solid #111; padding: .3rem .6rem; font-size: .82rem; }
+    table.datos td.etiqueta { font-weight: 700; background: #f0f0f0; width: 18%; }
 
-    table.evaluacion { width: 100%; border-collapse: collapse; margin-bottom: 1.6rem; }
+    table.evaluacion { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     table.evaluacion th, table.evaluacion td {
-        border: 1px solid #111;
-        padding: .5rem .6rem;
-        font-size: .85rem;
-        vertical-align: middle;
+        border: 1px solid #111; padding: .35rem .5rem; font-size: .78rem; vertical-align: middle;
     }
     table.evaluacion thead th {
-        background: #e3e3e3;
-        text-align: center;
-        text-transform: uppercase;
-        font-size: .72rem;
-        letter-spacing: .03em;
+        background: #dcdcdc; text-align: center; font-size: .68rem;
+        text-transform: uppercase; letter-spacing: .02em;
     }
-    table.evaluacion td.num { text-align: center; width: 3rem; }
-    table.evaluacion td.puntaje { text-align: center; width: 7rem; font-variant-numeric: tabular-nums; }
+    table.evaluacion td.num { text-align: center; width: 2.2rem; }
+    table.evaluacion td.especifico { text-align: center; width: 5rem; white-space: nowrap; }
+    table.evaluacion td.puntaje { text-align: center; width: 4.5rem; font-variant-numeric: tabular-nums; }
+    tr.subgrupo td {
+        background: #eef0ec; font-weight: 700; text-align: center;
+        text-transform: uppercase; font-size: .72rem; letter-spacing: .02em;
+    }
     table.evaluacion tfoot td { font-weight: 700; background: #f0f0f0; }
-    table.evaluacion tfoot td.puntaje { font-size: 1rem; }
+    table.evaluacion tfoot td.puntaje { font-size: .95rem; }
 
     .resumen-final {
-        display: flex; justify-content: space-between; align-items: center;
-        border: 2px solid #111; padding: .7rem 1rem; margin-bottom: 2.5rem;
-        font-weight: 700;
+        display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+        border: 2px solid #111; border-top: none; padding: .5rem .8rem; font-weight: 700; font-size: .8rem;
     }
-    .resumen-final .etapa { font-size: .85rem; }
-    .resumen-final .valor { font-size: 1.1rem; }
-    .resumen-final.resumen-total { background: #f0f0f0; border-width: 3px; margin-bottom: 2rem; }
-    .resumen-final.resumen-total .etapa { font-size: .82rem; }
-    .resumen-final.resumen-total .valor { font-size: 1.25rem; }
+    .resumen-final.resumen-total { background: #f0f0f0; margin-top: 1.2rem; border-top: 2px solid #111; }
+    .resumen-final.resumen-total .valor { font-size: 1.05rem; }
 
-    .subtitulo-seccion {
-        font-weight: 700;
-        font-size: .92rem;
-        text-transform: uppercase;
-        letter-spacing: .02em;
-        color: #16543f;
-        border-bottom: 2px solid #16543f;
-        padding-bottom: .3rem;
-        margin: 1.6rem 0 .8rem;
+    /* Tablas de rúbrica (Capacidad Docente / Entrevista) — cada ítem trae
+       sus preguntas guía como sub-líneas, igual que en la hoja oficial. */
+    table.rubrica { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    table.rubrica th, table.rubrica td { border: 1px solid #111; padding: .35rem .5rem; font-size: .76rem; }
+    table.rubrica thead th { background: #dcdcdc; text-align: center; font-size: .68rem; text-transform: uppercase; }
+    table.rubrica .rango { font-weight: 700; text-align: center; }
+    table.rubrica .rango small { display: block; font-weight: 400; font-size: .68rem; }
+    table.rubrica td.item-num { text-align: center; width: 2rem; vertical-align: top; font-weight: 700; }
+    table.rubrica td.item-desc { width: auto; }
+    table.rubrica td.item-desc .titulo-item { font-weight: 700; display: block; margin-bottom: .2rem; }
+    table.rubrica td.item-desc ul { margin: 0; padding-left: 1.1rem; }
+    table.rubrica td.item-desc li { margin-bottom: .1rem; }
+    table.rubrica td.puntaje-total { text-align: center; width: 4.5rem; font-size: 1rem; font-weight: 700; vertical-align: middle; }
+    table.rubrica tfoot td { font-weight: 700; background: #f0f0f0; text-align: center; }
+
+    .titulo-tabla {
+        text-align: center; font-weight: 700; font-size: .9rem; text-transform: uppercase;
+        border: 2px solid #111; border-bottom: none; padding: .5rem; margin-top: 1.6rem;
     }
-    .subtitulo-seccion:first-of-type { margin-top: 0; }
+    .titulo-tabla:first-child { margin-top: 0; }
+
+    .observaciones { border: 2px solid #111; border-top: none; padding: .6rem .8rem; font-size: .8rem; }
+    .observaciones .etiqueta { font-weight: 700; text-transform: uppercase; margin-bottom: .4rem; }
+    .observaciones .lineas div { border-bottom: 1px dotted #555; min-height: 1.3rem; margin-bottom: .3rem; }
 
     .firmas { display: flex; justify-content: space-between; gap: 2rem; margin-top: 3rem; }
-    .firma { flex: 1; text-align: center; font-size: .82rem; }
+    .firma { flex: 1; text-align: center; font-size: .8rem; }
     .firma .linea { border-top: 1px solid #111; margin-bottom: .3rem; padding-top: .3rem; }
 
     @media print {
-        @page { size: portrait; margin: 1.2cm; }
+        @page { size: portrait; margin: 1cm; }
         .barra-no-imprimir { display: none; }
         body { padding: 0; }
+        .hoja { max-width: none; margin: 0; }
+        .salto-pagina { page-break-before: always; }
     }
 </style>
 </head>
 <body>
+<div class="barra-no-imprimir">
+    <button onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<!-- ============ PRIMERA CARA: Evaluación de la Hoja de Vida ============ -->
 <div class="hoja">
-    <div class="barra-no-imprimir">
-        <button onclick="window.print()">🖨️ Imprimir</button>
+    <div class="titulo-ficha">
+        Evaluación de la Hoja de Vida de Postulantes a Plaza de Docentes<br>
+        de la {{ nombre_escuela_largo }} ({{ nombre_escuela_corto }})
     </div>
-
-    <div class="encabezado">
-        <div class="institucion">Policía Nacional del Perú</div>
-        <div class="escuela">{{ nombre_escuela_largo }} ({{ nombre_escuela_corto }})</div>
-        <div class="anexo">Manual del Personal Docente de la ENFPP PNP — Anexos 10 a 13</div>
-    </div>
-
-    <div class="titulo-ficha">Ficha de Calificación del Postulante a la Docencia</div>
-    <div class="subtitulo-seccion">1. Evaluación Curricular — Anexo 13</div>
-
     <table class="datos">
-        <tr>
-            <td class="etiqueta">Apellidos</td>
-            <td>{{ postulante.apellidos }}</td>
-            <td class="etiqueta">Nombres</td>
-            <td>{{ postulante.nombres }}</td>
-        </tr>
-        <tr>
-            <td class="etiqueta">DNI</td>
-            <td>{{ postulante.dni|default:"—" }}</td>
-            <td class="etiqueta">CIP</td>
-            <td>{{ postulante.cip|default:"—" }}</td>
-        </tr>
-        <tr>
-            <td class="etiqueta">Grado</td>
-            <td>{{ postulante.get_grado_display }}</td>
-            <td class="etiqueta">Procedencia</td>
-            <td>{{ postulante.get_procedencia_display }}</td>
-        </tr>
         <tr>
             <td class="etiqueta">Unidad didáctica</td>
             <td>{{ postulante.unidad_didactica }}</td>
@@ -143,8 +115,22 @@
             <td>{{ postulante.convocatoria }}</td>
         </tr>
         <tr>
+            <td class="etiqueta">Grado/Profesión</td>
+            <td>{{ postulante.get_grado_display }} ({{ postulante.get_procedencia_display }})</td>
             <td class="etiqueta">Fecha de evaluación</td>
-            <td colspan="3">{{ postulante.fecha_evaluacion|date:"d/m/Y"|default:"—" }}</td>
+            <td>{{ postulante.fecha_evaluacion|date:"d/m/Y"|default:"—" }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Apellidos y Nombres</td>
+            <td>{{ postulante.nombre_completo }}</td>
+            <td class="etiqueta">N° DNI</td>
+            <td>{{ postulante.dni|default:"—" }}</td>
+        </tr>
+        <tr>
+            <td class="etiqueta">Celular</td>
+            <td>{{ postulante.celular|default:"—" }}</td>
+            <td class="etiqueta">CIP</td>
+            <td>{{ postulante.cip|default:"—" }}</td>
         </tr>
     </table>
 
@@ -153,122 +139,135 @@
             <tr>
                 <th>N°</th>
                 <th>Descripción</th>
-                <th>Puntaje obtenido</th>
+                <th>Puntaje específico</th>
                 <th>Puntaje máximo</th>
+                <th>Calificación</th>
             </tr>
         </thead>
         <tbody>
-            {% for num, descripcion, obtenido, maximo in bloques %}
+            {% for num, titulo_bloque, items in bloques %}
+            <tr class="subgrupo"><td colspan="5">{{ titulo_bloque }}</td></tr>
+            {% for descripcion, especifico, maximo, obtenido in items %}
             <tr>
-                <td class="num">{{ num }}</td>
+                <td class="num">{% if forloop.first %}{{ num }}{% endif %}</td>
                 <td>{{ descripcion }}</td>
-                <td class="puntaje">{{ obtenido }}</td>
+                <td class="especifico">{{ especifico|default:"—" }}</td>
                 <td class="puntaje">{{ maximo }}</td>
+                <td class="puntaje">{{ obtenido }}</td>
             </tr>
+            {% endfor %}
             {% endfor %}
         </tbody>
         <tfoot>
             <tr>
-                <td colspan="2">TOTAL EVALUACIÓN CURRICULAR</td>
-                <td class="puntaje">{{ postulante.puntaje_evaluacion_curricular }}</td>
+                <td colspan="3">TOTAL EVALUACIÓN DE LA HOJA DE VIDA</td>
                 <td class="puntaje">{{ maximo_curricular }}</td>
+                <td class="puntaje">{{ postulante.puntaje_evaluacion_curricular }}</td>
             </tr>
         </tfoot>
     </table>
-
     <div class="resumen-final">
-        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 20.00</span>
-        <span class="valor">
-            {% if postulante.apto_curricular %}APTO{% else %}NO APTO{% endif %}
-        </span>
+        <span>Puntaje mínimo aprobatorio de esta etapa: 20.00</span>
+        <span class="valor">{% if postulante.apto_curricular %}APTO{% else %}NO APTO{% endif %}</span>
     </div>
+</div>
 
-    <div class="subtitulo-seccion">2. Capacidad Docente — Anexo 11</div>
-    <table class="evaluacion">
+<!-- ============ SEGUNDA CARA: Capacidad Docente + Entrevista Personal ============ -->
+<div class="hoja salto-pagina">
+    <div class="titulo-tabla">Evaluación de Capacidad Docente</div>
+    <table class="rubrica">
         <thead>
             <tr>
-                <th>N°</th>
-                <th>Descripción</th>
-                <th>Puntaje obtenido</th>
-                <th>Puntaje máximo</th>
+                <th rowspan="2" style="width:2rem;">N°</th>
+                <th rowspan="2">Descripción</th>
+                <th colspan="3">Puntaje específico</th>
+                <th rowspan="2" style="width:4.5rem;">Puntaje total</th>
+            </tr>
+            <tr>
+                <th class="rango">Deficiente<small>0</small></th>
+                <th class="rango">Bueno<small>2 – 4</small></th>
+                <th class="rango">Excelente<small>5 – 7</small></th>
             </tr>
         </thead>
         <tbody>
-            {% for descripcion, obtenido in capacidad_docente %}
+            {% for titulo, preguntas, obtenido in capacidad_docente %}
             <tr>
-                <td class="num">{{ forloop.counter }}</td>
-                <td>{{ descripcion }}</td>
-                <td class="puntaje">{{ obtenido }}</td>
-                <td class="puntaje">7</td>
+                <td class="item-num">{{ forloop.counter }}</td>
+                <td class="item-desc">
+                    <span class="titulo-item">{{ titulo }}</span>
+                    <ul>{% for p in preguntas %}<li>{{ p }}</li>{% endfor %}</ul>
+                </td>
+                <td colspan="3"></td>
+                <td class="puntaje-total">{{ obtenido }} / 7</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
-            <tr>
-                <td colspan="2">TOTAL CAPACIDAD DOCENTE</td>
-                <td class="puntaje">{{ postulante.puntaje_capacidad_docente }}</td>
-                <td class="puntaje">35</td>
-            </tr>
+            <tr><td colspan="5">TOTAL CAPACIDAD DOCENTE</td><td>{{ postulante.puntaje_capacidad_docente }} / 35</td></tr>
         </tfoot>
     </table>
     <div class="resumen-final">
-        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 30.00</span>
-        <span class="valor">
-            {% if postulante.apto_capacidad_docente %}APTO{% else %}NO APTO{% endif %}
-        </span>
+        <span>Puntaje mínimo aprobatorio de esta etapa: 30.00</span>
+        <span class="valor">{% if postulante.apto_capacidad_docente %}APTO{% else %}NO APTO{% endif %}</span>
     </div>
 
-    <div class="subtitulo-seccion">3. Entrevista Personal — Anexo 12</div>
-    <table class="evaluacion">
+    <div class="titulo-tabla">Evaluación Entrevista Personal</div>
+    <table class="rubrica">
         <thead>
             <tr>
-                <th>N°</th>
-                <th>Descripción</th>
-                <th>Puntaje obtenido</th>
-                <th>Puntaje máximo</th>
+                <th rowspan="2" style="width:2rem;">N°</th>
+                <th rowspan="2">Descripción</th>
+                <th colspan="3">Puntaje específico</th>
+                <th rowspan="2" style="width:4.5rem;">Puntaje total</th>
+            </tr>
+            <tr>
+                <th class="rango">Deficiente<small>0</small></th>
+                <th class="rango">Bueno<small>1 – 4</small></th>
+                <th class="rango">Excelente<small>5</small></th>
             </tr>
         </thead>
         <tbody>
-            {% for descripcion, obtenido in entrevista_personal %}
+            {% for titulo, preguntas, obtenido in entrevista_personal %}
             <tr>
-                <td class="num">{{ forloop.counter }}</td>
-                <td>{{ descripcion }}</td>
-                <td class="puntaje">{{ obtenido }}</td>
-                <td class="puntaje">5</td>
+                <td class="item-num">{{ forloop.counter }}</td>
+                <td class="item-desc">
+                    <span class="titulo-item">{{ titulo }}</span>
+                    <ul>{% for p in preguntas %}<li>{{ p }}</li>{% endfor %}</ul>
+                </td>
+                <td colspan="3"></td>
+                <td class="puntaje-total">{{ obtenido }} / 5</td>
             </tr>
             {% endfor %}
         </tbody>
         <tfoot>
-            <tr>
-                <td colspan="2">TOTAL ENTREVISTA PERSONAL</td>
-                <td class="puntaje">{{ postulante.puntaje_entrevista_personal }}</td>
-                <td class="puntaje">25</td>
-            </tr>
+            <tr><td colspan="5">TOTAL ENTREVISTA PERSONAL</td><td>{{ postulante.puntaje_entrevista_personal }} / 25</td></tr>
         </tfoot>
     </table>
     <div class="resumen-final">
-        <span class="etapa">Puntaje mínimo aprobatorio de esta etapa: 10.00</span>
-        <span class="valor">
-            {% if postulante.apto_entrevista %}APTO{% else %}NO APTO{% endif %}
-        </span>
+        <span>Puntaje mínimo aprobatorio de esta etapa: 10.00</span>
+        <span class="valor">{% if postulante.apto_entrevista %}APTO{% else %}NO APTO{% endif %}</span>
     </div>
 
-    <div class="subtitulo-seccion">Resultado Final</div>
+    <div class="observaciones">
+        <div class="etiqueta">Observaciones:</div>
+        <div class="lineas">
+            {% if postulante.observaciones_entrevista %}
+                <div>{{ postulante.observaciones_entrevista|linebreaksbr }}</div>
+            {% else %}
+                <div>&nbsp;</div><div>&nbsp;</div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="resumen-final resumen-total">
-        <span class="etapa">Puntaje Total (Curricular + Capacidad Docente + Entrevista) — mínimo aprobatorio 60.00 de 100</span>
+        <span>Puntaje Total (Hoja de Vida + Capacidad Docente + Entrevista) — mínimo aprobatorio 60.00 de 100</span>
         <span class="valor">{{ postulante.puntaje_total }} / 100 — {{ postulante.resultado }}</span>
     </div>
 
     <div class="firmas">
-        <div class="firma">
-            <div class="linea">Presidente del Consejo Académico Disciplinario</div>
-        </div>
-        <div class="firma">
-            <div class="linea">Miembro del Consejo Académico Disciplinario</div>
-        </div>
-        <div class="firma">
-            <div class="linea">Miembro del Consejo Académico Disciplinario</div>
-        </div>
+        <div class="firma"><div class="linea">Presidente del Consejo Académico Disciplinario</div></div>
+        <div class="firma"><div class="linea">Miembro del Consejo Académico Disciplinario</div></div>
+        <div class="firma"><div class="linea">Miembro del Consejo Académico Disciplinario</div></div>
     </div>
 </div>
 </body>

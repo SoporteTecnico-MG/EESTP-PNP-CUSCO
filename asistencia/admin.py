@@ -667,7 +667,6 @@ class PostulanteForm(forms.ModelForm):
             "grado": _GradoSelect(attrs={"data-role": "grado-select"}),
             "procedencia": forms.Select(attrs={"data-role": "procedencia-select"}),
             "dni": forms.TextInput(attrs={"data-role": "dni-input"}),
-            "tipo_titulo_profesional": forms.Select(attrs={"data-role": "tipo-titulo-select"}),
             **{
                 campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0", "step": "0.5"})
                 for campo in _CAMPOS_CONTEO_PUNTAJE
@@ -756,9 +755,8 @@ class PostulanteAdmin(admin.ModelAdmin):
         }),
         ("1. Grados académicos y títulos profesionales (máx. 20)", {
             "fields": (
-                "tiene_titulo_profesional", "tipo_titulo_profesional",
-                "tiene_titulo_profesional_tecnico",
-                "tiene_maestria", "tiene_doctorado", "tiene_segunda_especialidad",
+                "tiene_titulo_profesional", "tiene_titulo_tecnico_o_civil",
+                "tiene_maestria_o_doctorado", "tiene_segunda_especialidad",
                 "vista_puntaje_grados_titulos",
             )
         }),
@@ -803,6 +801,7 @@ class PostulanteAdmin(admin.ModelAdmin):
             "fields": (
                 "ep_proceso_ensenanza", "ep_desarrollo_institucional", "ep_especialidad_experiencia",
                 "ep_investigacion_innovacion", "ep_personalidad",
+                "observaciones_entrevista",
                 "vista_puntaje_entrevista_personal",
             )
         }),
