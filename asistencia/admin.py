@@ -160,9 +160,12 @@ _proceso_docente_get_app_list = proceso_docente_site.get_app_list
 
 _SECCIONES_PROCESO_DOCENTE = [
     ("convocatorias", "Convocatorias", ["Postulante", "Convocatoria"]),
+    # Personas y Docentes van juntas bajo "Tablas Maestras", justo después
+    # de Convocatorias (no al final) — son las tablas de consulta que se
+    # usan todo el tiempo al calificar postulantes, así que buscarlas no
+    # debería requerir bajar toda la barra lateral.
+    ("tablas-maestras", "Tablas Maestras", ["Persona", "Docente"]),
     ("escala-calificacion", "Escala de Calificación", ["CriterioPuntaje"]),
-    ("consulta-docentes", "Consulta de Docentes", ["Docente"]),
-    ("consulta-personas", "Consulta de Personas (por DNI)", ["Persona"]),
 ]
 
 
