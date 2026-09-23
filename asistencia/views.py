@@ -24,6 +24,7 @@ from .models import (
     MarcacionBiometrica,
     OfertaCurso,
     PeriodoAcademico,
+    Persona,
     Postulante,
     Promocion,
     registrar_actividad,
@@ -1336,21 +1337,22 @@ def imprimir_ficha_curricular(request, pk):
 
 
 def buscar_postulante_por_dni(request):
-    """Devuelve en JSON los datos del último registro de Postulante con ese
-    DNI (si existe), para autocompletar el formulario y evitar que jefatura
-    reescriba a mano los datos de alguien que ya postuló antes."""
+    """Devuelve en JSON los datos de Persona con ese DNI (si existe), para
+    autocompletar el formulario de Postulante — sea o no esa persona
+    Docente. Es una tabla de referencia aparte (ver modelo Persona), nunca
+    se cruza con la ficha de Docente."""
     dni = (request.GET.get("dni") or "").strip()
     if not dni:
         return JsonResponse({"encontrado": False})
-    anterior = Postulante.objects.filter(dni=dni).order_by("-id").first()
-    if not anterior:
+    persona = Persona.objects.filter(dni=dni).first()
+    if not persona:
         return JsonResponse({"encontrado": False})
     return JsonResponse({
         "encontrado": True,
-        "apellidos": anterior.apellidos,
-        "nombres": anterior.nombres,
-        "cip": anterior.cip,
-        "celular": anterior.celular,
-        "procedencia": anterior.procedencia,
-        "grado": anterior.grado,
+        "apellidos": persona.apellidos,
+        "nombres": persona.nombres,
+        "cip": persona.cip,
+        "celular": persona.celular,
+        "procedencia": persona.procedencia,
+        "grado": persona.grado,
     })

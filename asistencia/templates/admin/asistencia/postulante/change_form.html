@@ -1,4 +1,15 @@
 {% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+{% if not is_popup %}
+{% block breadcrumbs %}
+<ol class="breadcrumbs">
+<li><a href="{% url 'admin:index' %}">{% translate 'Home' %}</a></li>
+<li><a href="{% url 'procesodocente:index' %}">Convocatorias</a></li>
+<li>{% if has_view_permission %}<a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>{% else %}{{ opts.verbose_name_plural|capfirst }}{% endif %}</li>
+<li aria-current="page">{% if add %}{% blocktranslate with name=opts.verbose_name %}Add {{ name }}{% endblocktranslate %}{% else %}{{ original|truncatewords:"18" }}{% endif %}</li>
+</ol>
+{% endblock %}
+{% endif %}
 {% block extrastyle %}
 {{ block.super }}
 <style>
@@ -11,29 +22,47 @@
     .model-postulante #content-main { max-width: 1500px; margin: 0 auto; width: 100%; }
     .model-postulante #content-related { display: none; }
 
-    /* Bloque de datos generales, en dos columnas — son campos cortos, no
-       tiene sentido que cada uno ocupe todo el ancho de la pantalla. */
-    .model-postulante fieldset.module.aligned:first-of-type {
+    /* Todos los bloques van en dos columnas, centradas — son campos
+       cortos (casillas, números del 0 al 7, selects) y se veían uno
+       debajo del otro dejando vacía más de la mitad de la pantalla. El
+       encabezado y las líneas de "TOTAL BLOQUE ..." ocupan las dos
+       columnas para que se lean de corrido. */
+    .model-postulante fieldset.module.aligned {
         display: grid;
         grid-template-columns: repeat(2, minmax(240px, 1fr));
-        column-gap: 2rem;
+        column-gap: 2.5rem;
+        justify-content: center;
         align-items: start;
     }
-    .model-postulante fieldset.module.aligned:first-of-type h2.fieldset-heading,
-    .model-postulante fieldset.module.aligned:first-of-type .form-row.field-postula_a_otro_curso_misma_convocatoria {
+    .model-postulante fieldset.module.aligned h2.fieldset-heading,
+    .model-postulante fieldset.module.aligned .form-row.field-postula_a_otro_curso_misma_convocatoria,
+    .model-postulante fieldset.module.aligned .form-row[class*="field-vista_"] {
         grid-column: 1 / -1;
     }
     @media (max-width: 720px) {
-        .model-postulante fieldset.module.aligned:first-of-type { grid-template-columns: 1fr; }
+        .model-postulante fieldset.module.aligned { grid-template-columns: 1fr; }
     }
 
+    .pd-dni-fila { margin-top: .4rem; }
+    .pd-dni-buscar {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: .45rem;
+        padding: .5rem 1.1rem;
+        font-size: .8rem;
+        font-weight: 700;
+        cursor: pointer;
+    }
+    .pd-dni-buscar:hover { background: var(--secondary); }
     .pd-dni-aviso {
         display: block;
         font-size: .74rem;
         color: var(--body-quiet-color);
-        margin-top: .3rem;
+        margin-top: .35rem;
     }
     .pd-dni-aviso-ok { color: #1c5c33; font-weight: 600; }
+    .pd-dni-aviso-nuevo { color: #8a6d1a; font-weight: 600; }
 
     .model-postulante fieldset.module.aligned {
         background: #fff;

@@ -575,11 +575,23 @@ class Postulante(models.Model):
         "También puedes seleccionarlo a mano si hace falta — nunca se vincula por nombre parecido.",
     )
 
+    class TipoTituloProfesional(models.TextChoices):
+        UNIVERSITARIO = "UNIVERSITARIO", "Universitario (Anexo 10 — 4 pts)"
+        POLICIAL = "POLICIAL", "Administración y CC. Policiales (Anexo 13 — 5 pts)"
+
     # --- Evaluación Curricular — bloque 1: Grados y Títulos (máx. 20) ---
     tiene_titulo_profesional = models.BooleanField(
-        "Título Profesional (Universitario si es Civil/Extranjero — Anexo 10; "
-        "en Administración y CC. Policiales si es PNP/FFAA — Anexo 13)",
+        "Título Profesional",
         default=False,
+    )
+    tipo_titulo_profesional = models.CharField(
+        "Tipo de título profesional",
+        max_length=15,
+        choices=TipoTituloProfesional.choices,
+        default=TipoTituloProfesional.UNIVERSITARIO,
+        blank=True,
+        help_text="Solo si marcaste \"Título Profesional\": elige con qué puntaje se califica "
+        "— Universitario (Anexo 10) o en Administración y CC. Policiales (Anexo 13).",
     )
     tiene_titulo_profesional_tecnico = models.BooleanField(
         "Título Profesional Técnico en ciencias policiales (solo Anexo 13)", default=False
@@ -707,6 +719,22 @@ class Postulante(models.Model):
             if coincidencia:
                 self.docente = coincidencia
         super().save(*args, **kwargs)
+        # Deja (o actualiza) un registro en Persona con estos mismos datos,
+        # para que la próxima vez que jefatura digite este DNI —en este
+        # postulante o en cualquier otro— los datos aparezcan solos. Es un
+        # registro aparte, nunca toca la ficha de Docente.
+        if self.dni:
+            Persona.objects.update_or_create(
+                dni=self.dni,
+                defaults={
+                    "apellidos": self.apellidos,
+                    "nombres": self.nombres,
+                    "cip": self.cip,
+                    "celular": self.celular,
+                    "procedencia": self.procedencia,
+                    "grado": self.grado,
+                },
+            )
 
     # --- Puntajes calculados ---
     # El puntaje por unidad y el tope de cada criterio salen de
@@ -718,9 +746,10 @@ class Postulante(models.Model):
 
     _DEFAULTS_CRITERIOS = {
         # Título profesional: es UNA sola línea/casilla, pero el puntaje que
-        # otorga depende de la Procedencia — Anexo 10 (civil/extranjero) da
-        # menos que el Anexo 13 (PNP/FFAA). No se suman los dos, se usa uno
-        # u otro según corresponda (ver puntaje_grados_titulos). El tope del
+        # otorga depende de tipo_titulo_profesional (elegido a mano) —
+        # Anexo 10 (Universitario) da menos que el Anexo 13 (Administración
+        # y CC. Policiales). No se suman los dos, se usa uno u otro según
+        # corresponda (ver puntaje_grados_titulos). El tope del
         # bloque muestra el valor del Anexo 13 (prioridad), por eso solo
         # "tiene_titulo_profesional" entra en la suma de maximo_bloque(1).
         "tiene_titulo_profesional": (5.0, 5.0),  # Anexo 13 — PNP/FFAA
@@ -759,7 +788,7 @@ class Postulante(models.Model):
     def puntaje_grados_titulos(self):
         total = 0
         if self.tiene_titulo_profesional:
-            if self.procedencia in (self.Procedencia.PNP, self.Procedencia.FFAA):
+            if self.tipo_titulo_profesional == self.TipoTituloProfesional.POLICIAL:
                 total += self._puntos("tiene_titulo_profesional", 1)
             else:
                 total += self._puntos("tiene_titulo_universitario", 1)
@@ -930,3 +959,29 @@ class Postulante(models.Model):
             self.save(update_fields=["docente"])
 
         return docente, creado
+
+
+class Persona(models.Model):
+    """Registro de referencia por DNI, para autocompletar el formulario de
+    Postulante — sea o no esa persona Docente. Se llena solo cada vez que
+    se guarda un Postulante con DNI (ver Postulante.save()); también se
+    puede cargar o corregir a mano acá. Es una tabla aparte, nunca se
+    cruza ni se sincroniza con Docente — evita que buscar por DNI toque o
+    dependa de la ficha de Docente."""
+
+    dni = models.CharField("DNI", max_length=15, unique=True)
+    apellidos = models.CharField(max_length=150)
+    nombres = models.CharField(max_length=150)
+    cip = models.CharField("CIP", max_length=15, blank=True, help_text="Opcional — solo aplica a personal PNP.")
+    celular = models.CharField("Telf. celular", max_length=20, blank=True)
+    procedencia = models.CharField(max_length=12, choices=Postulante.Procedencia.choices, blank=True)
+    grado = models.CharField(max_length=15, choices=Postulante.Grado.choices, blank=True)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Persona (referencia de búsqueda por DNI)"
+        verbose_name_plural = "Personas (referencia de búsqueda por DNI)"
+        ordering = ["apellidos", "nombres"]
+
+    def __str__(self):
+        return f"{self.apellidos} {self.nombres} ({self.dni})"

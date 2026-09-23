@@ -32,7 +32,13 @@
     function initCalculadoraPuntos() {
         const criterios = window.CRITERIOS_PUNTAJE;
         if (!criterios) return;
-        const claves = Object.keys(criterios);
+        // "tiene_titulo_universitario" no tiene campo propio en el
+        // formulario — es la MISMA casilla "tiene_titulo_profesional",
+        // solo que con el puntaje del Anexo 10 en vez del Anexo 13 (según
+        // lo que se elija en el select "Tipo de título profesional"). Se
+        // maneja aparte y se excluye del recorrido genérico para no
+        // sumarlo dos veces ni inflar el máximo total.
+        const claves = Object.keys(criterios).filter(function (c) { return c !== "tiene_titulo_universitario"; });
 
         const total = document.createElement("div");
         total.id = "pd-total-flotante";
@@ -55,9 +61,23 @@
             return badge;
         }
 
+        function puntosTituloProfesional() {
+            const checkbox = document.getElementById("id_tiene_titulo_profesional");
+            if (!checkbox) return 0;
+            const tipo = document.getElementById("id_tipo_titulo_profesional");
+            const esPolicial = tipo && tipo.value === "POLICIAL";
+            const cfg = esPolicial ? criterios["tiene_titulo_profesional"] : criterios["tiene_titulo_universitario"];
+            const puntos = checkbox.checked ? cfg.tope : 0;
+            const badge = badgeDe(checkbox);
+            badge.textContent = fmt(puntos) + " / " + fmt(cfg.tope);
+            badge.classList.toggle("pd-badge-tope", puntos >= cfg.tope && cfg.tope > 0);
+            return puntos;
+        }
+
         function recalcular() {
-            let sumaTotal = 0;
+            let sumaTotal = puntosTituloProfesional();
             claves.forEach(function (clave) {
+                if (clave === "tiene_titulo_profesional") return;
                 const campo = document.getElementById("id_" + clave);
                 if (!campo) return;
                 const cfg = criterios[clave];
@@ -82,6 +102,8 @@
             campo.addEventListener("input", recalcular);
             campo.addEventListener("change", recalcular);
         });
+        const tipoTitulo = document.getElementById("id_tipo_titulo_profesional");
+        if (tipoTitulo) tipoTitulo.addEventListener("change", recalcular);
 
         recalcular();
     }
@@ -90,9 +112,20 @@
         const dni = document.querySelector('[data-role="dni-input"]');
         if (!dni || !window.BUSCAR_POSTULANTE_URL) return;
 
+        const envoltorio = dni.parentNode;
+        const fila = document.createElement("div");
+        fila.className = "pd-dni-fila";
+        dni.insertAdjacentElement("afterend", fila);
+
+        const boton = document.createElement("button");
+        boton.type = "button";
+        boton.className = "pd-dni-buscar";
+        boton.textContent = "Buscar";
+        fila.appendChild(boton);
+
         const aviso = document.createElement("span");
         aviso.className = "pd-dni-aviso";
-        dni.insertAdjacentElement("afterend", aviso);
+        envoltorio.appendChild(aviso);
 
         function llenar(campo, valor) {
             const el = document.getElementById("id_" + campo);
@@ -103,11 +136,19 @@
             const valor = dni.value.trim();
             aviso.textContent = "";
             aviso.className = "pd-dni-aviso";
-            if (valor.length < 8) return;
+            if (valor.length < 6) {
+                aviso.textContent = "Escribe el DNI completo y presiona Buscar.";
+                return;
+            }
+            aviso.textContent = "Buscando…";
             fetch(window.BUSCAR_POSTULANTE_URL + "?dni=" + encodeURIComponent(valor))
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
-                    if (!data.encontrado) return;
+                    if (!data.encontrado) {
+                        aviso.textContent = "No hay ningún registro con ese DNI — completa los datos para crear uno nuevo.";
+                        aviso.className = "pd-dni-aviso pd-dni-aviso-nuevo";
+                        return;
+                    }
                     llenar("apellidos", data.apellidos);
                     llenar("nombres", data.nombres);
                     llenar("cip", data.cip);
@@ -118,12 +159,19 @@
                         procedencia.dispatchEvent(new Event("change"));
                     }
                     llenar("grado", data.grado);
-                    aviso.textContent = "Datos encontrados de una postulación anterior — se completaron los campos vacíos.";
+                    aviso.textContent = "Datos encontrados — se completaron los campos vacíos.";
                     aviso.className = "pd-dni-aviso pd-dni-aviso-ok";
                 });
         }
 
         dni.addEventListener("blur", buscar);
+        boton.addEventListener("click", buscar);
+        dni.addEventListener("keydown", function (ev) {
+            if (ev.key === "Enter") {
+                ev.preventDefault();
+                buscar();
+            }
+        });
     }
 
     function initOcultarPanelLateral() {

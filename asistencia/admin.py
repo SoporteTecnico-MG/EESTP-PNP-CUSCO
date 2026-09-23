@@ -162,6 +162,7 @@ _SECCIONES_PROCESO_DOCENTE = [
     ("convocatorias", "Convocatorias", ["Postulante", "Convocatoria"]),
     ("escala-calificacion", "Escala de Calificación", ["CriterioPuntaje"]),
     ("consulta-docentes", "Consulta de Docentes", ["Docente"]),
+    ("consulta-personas", "Consulta de Personas (por DNI)", ["Persona"]),
 ]
 
 
@@ -377,6 +378,19 @@ class DocenteAdmin(admin.ModelAdmin):
 # no está en el mismo AdminSite). Sirve además para que, desde Proceso
 # Docente, se pueda revisar el registro de un Docente sin cruzar de sitio.
 proceso_docente_site.register(models.Docente, DocenteAdmin)
+
+
+@admin.register(models.Persona, site=proceso_docente_site)
+class PersonaAdmin(admin.ModelAdmin):
+    """Registro de referencia por DNI — se llena solo al guardar un
+    Postulante, y también se puede cargar o corregir a mano acá. Es aparte
+    de Docente a propósito (ver ayuda del modelo): sirve para encontrar a
+    alguien por DNI aunque nunca haya sido ni postulado a ser Docente."""
+
+    list_display = ("dni", "apellidos", "nombres", "celular", "procedencia", "grado", "actualizado")
+    search_fields = ("dni", "apellidos", "nombres")
+    list_filter = ("procedencia",)
+    ordering = ("apellidos", "nombres")
 
 
 @admin.register(models.Promocion, site=control_docentes_site)
@@ -650,6 +664,7 @@ class PostulanteForm(forms.ModelForm):
             "grado": _GradoSelect(attrs={"data-role": "grado-select"}),
             "procedencia": forms.Select(attrs={"data-role": "procedencia-select"}),
             "dni": forms.TextInput(attrs={"data-role": "dni-input"}),
+            "tipo_titulo_profesional": forms.Select(attrs={"data-role": "tipo-titulo-select"}),
             **{
                 campo: forms.NumberInput(attrs={"class": "pd-input", "min": "0", "step": "0.5"})
                 for campo in _CAMPOS_CONTEO_PUNTAJE
@@ -738,7 +753,8 @@ class PostulanteAdmin(admin.ModelAdmin):
         }),
         ("1. Grados académicos y títulos profesionales (máx. 20)", {
             "fields": (
-                "tiene_titulo_profesional", "tiene_titulo_profesional_tecnico",
+                "tiene_titulo_profesional", "tipo_titulo_profesional",
+                "tiene_titulo_profesional_tecnico",
                 "tiene_maestria", "tiene_doctorado", "tiene_segunda_especialidad",
                 "vista_puntaje_grados_titulos",
             )
