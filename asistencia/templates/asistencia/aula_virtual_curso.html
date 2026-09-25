@@ -1,0 +1,123 @@
+{% extends "asistencia/base_publico.html" %}
+{% block titulo %}{{ asignacion.oferta_curso.curso.nombre }} — Aula Virtual{% endblock %}
+{% block extra_head %}
+<style>
+    .curso-cabecera {
+        background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+        color: #fdfaf0;
+        border-radius: .6rem;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 1.6rem;
+    }
+    .curso-cabecera h1 { margin: 0 0 .2rem; font-size: 1.25rem; }
+    .curso-cabecera p { margin: 0; opacity: .85; font-size: .88rem; }
+
+    .curso-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.5rem; }
+    @media (max-width: 820px) { .curso-grid { grid-template-columns: 1fr; } }
+
+    .tarjeta { background: #fff; border: 1px solid #e3ddc9; border-radius: .6rem; padding: 1.4rem; }
+    .tarjeta h2 {
+        margin: 0 0 1rem; color: var(--verde-oscuro); font-size: 1.02rem;
+        border-bottom: 2px solid var(--dorado); padding-bottom: .35rem; display: inline-block;
+    }
+
+    .material {
+        border: 1px solid #e3ddc9; border-radius: .5rem; padding: .9rem 1rem; margin-bottom: .8rem;
+    }
+    .material:last-child { margin-bottom: 0; }
+    .material .tipo {
+        display: inline-block; font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .04em; color: var(--verde); margin-bottom: .35rem;
+    }
+    .material h3 { margin: 0 0 .3rem; font-size: .95rem; color: var(--texto); }
+    .material p { margin: 0 0 .4rem; font-size: .85rem; color: #6b7a72; white-space: pre-line; }
+    .material a.enlace { font-size: .85rem; color: var(--verde); word-break: break-all; }
+    .material .fecha { font-size: .72rem; color: #9aa5a0; margin-top: .4rem; }
+
+    .form-material label { display: block; font-size: .78rem; font-weight: 600; color: #6b7a72; margin: .8rem 0 .3rem; }
+    .form-material label:first-child { margin-top: 0; }
+    .form-material input[type="text"], .form-material input[type="url"], .form-material select, .form-material textarea {
+        width: 100%; padding: .55rem .6rem; border: 1px solid #d7d2bf; border-radius: .35rem; font-size: .88rem; font-family: inherit;
+    }
+    .form-material textarea { resize: vertical; min-height: 4.5rem; }
+    .btn-guardar {
+        background: var(--verde-oscuro); color: #fff; font-weight: 700; border: none;
+        border-radius: .4rem; padding: .6rem 1.2rem; font-size: .88rem; cursor: pointer; margin-top: 1rem;
+    }
+    .btn-guardar:hover { background: var(--verde); }
+
+    table.horario-curso { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    table.horario-curso th, table.horario-curso td { padding: .5rem .6rem; border-bottom: 1px solid #eee; text-align: left; }
+    table.horario-curso th { color: #6b7a72; font-size: .72rem; text-transform: uppercase; }
+
+    .av-vacio { color: #9aa5a0; font-size: .85rem; font-style: italic; }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="migas">
+    <a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo;
+    <a href="{% url 'asistencia:aula_virtual' %}">Aula Virtual</a> &rsaquo;
+    {{ asignacion.oferta_curso.curso.nombre }}
+</div>
+
+<div class="curso-cabecera">
+    <h1>{{ asignacion.oferta_curso.curso.nombre }}</h1>
+    <p>{{ asignacion.aula }} — {{ asignacion.oferta_curso.periodo_academico }} — Docente: {{ asignacion.docente }}</p>
+</div>
+
+<div class="curso-grid">
+    <div class="tarjeta">
+        <h2>Materiales</h2>
+        {% for m in materiales %}
+        <div class="material">
+            <span class="tipo">{{ m.get_tipo_display }}</span>
+            <h3>{{ m.titulo }}</h3>
+            {% if m.contenido %}<p>{{ m.contenido }}</p>{% endif %}
+            {% if m.enlace %}<a class="enlace" href="{{ m.enlace }}" target="_blank" rel="noopener">{{ m.enlace }}</a>{% endif %}
+            <div class="fecha">Publicado el {{ m.fecha_publicacion|date:"d/m/Y H:i" }}</div>
+        </div>
+        {% empty %}
+        <p class="av-vacio">Todavía no publicaste ningún material en este curso.</p>
+        {% endfor %}
+
+        <form method="post" class="form-material">
+            {% csrf_token %}
+            <label for="id_titulo">Título</label>
+            <input type="text" id="id_titulo" name="titulo" required maxlength="200">
+
+            <label for="id_tipo">Tipo</label>
+            <select id="id_tipo" name="tipo">
+                <option value="ENLACE">Enlace (Drive, YouTube, etc.)</option>
+                <option value="TEXTO">Aviso / texto</option>
+            </select>
+
+            <label for="id_enlace">Enlace (si aplica)</label>
+            <input type="url" id="id_enlace" name="enlace" placeholder="https://...">
+
+            <label for="id_contenido">Descripción / contenido</label>
+            <textarea id="id_contenido" name="contenido"></textarea>
+
+            <button type="submit" class="btn-guardar">Publicar</button>
+        </form>
+    </div>
+
+    <div class="tarjeta">
+        <h2>Horario del curso</h2>
+        {% if bloques %}
+        <table class="horario-curso">
+            <thead><tr><th>Día</th><th>Hora</th></tr></thead>
+            <tbody>
+                {% for b in bloques %}
+                <tr>
+                    <td>{{ b.get_dia_semana_display }}</td>
+                    <td>{{ b.hora_pedagogica_inicio.hora_inicio|time:"H:i" }}–{{ b.hora_pedagogica_fin.hora_fin|time:"H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="av-vacio">Este curso todavía no tiene horario armado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

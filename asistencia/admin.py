@@ -521,6 +521,24 @@ class AsignacionAdmin(admin.ModelAdmin):
     enlace_ver_horario.short_description = "Horario visual"
 
 
+@admin.register(models.MaterialClase, site=control_docentes_site)
+class MaterialClaseAdmin(admin.ModelAdmin):
+    """Solo lectura: el docente publica sus materiales desde el Aula
+    Virtual, no desde acá — esto es para que jefatura pueda supervisar qué
+    se está publicando, no para cargarlos por él."""
+
+    list_display = ("titulo", "tipo", "asignacion", "fecha_publicacion")
+    list_filter = ("tipo", "asignacion__oferta_curso__periodo_academico")
+    search_fields = ("titulo", "asignacion__docente__apellidos_nombres", "asignacion__oferta_curso__curso__nombre")
+    ordering = ("-fecha_publicacion",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(models.BloqueHorario, site=control_docentes_site)
 class BloqueHorarioAdmin(admin.ModelAdmin):
     """El listado plano de Django no sirve para esto: en vez de mostrarlo, 'Bloques

@@ -110,12 +110,12 @@
         {% if user.is_authenticated %}
         <a href="{% url 'asistencia:aula_virtual' %}" class="card-acceso dorado">
             <h3>Aula Virtual →</h3>
-            <p>Clases, materiales y asistencia virtual para docentes y estudiantes. (Próximamente)</p>
+            <p>Cursos, horario y materiales para docentes. El lado del estudiante está en construcción.</p>
         </a>
         {% else %}
         <div class="card-acceso dorado" style="cursor:default">
             <h3>Aula Virtual</h3>
-            <p>Clases, materiales y asistencia virtual para docentes y estudiantes. Próximamente.</p>
+            <p>Cursos, horario y materiales para docentes. Inicia sesión con tu cuenta para entrar.</p>
         </div>
         {% endif %}
 

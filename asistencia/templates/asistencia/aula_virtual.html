@@ -1,11 +1,88 @@
 {% extends "asistencia/base_publico.html" %}
 {% block titulo %}Aula Virtual — EESTP PNP CUSCO{% endblock %}
+{% block extra_head %}
+<style>
+    .av-hoy {
+        background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+        color: #fdfaf0;
+        border-radius: .6rem;
+        padding: 1.4rem 1.6rem;
+        margin-bottom: 1.6rem;
+    }
+    .av-hoy .fecha { font-size: .78rem; opacity: .85; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
+    .av-hoy .bloque-hoy {
+        display: flex; justify-content: space-between; align-items: center;
+        background: rgba(255,255,255,.1); border-radius: .4rem; padding: .6rem .9rem; margin-top: .5rem;
+    }
+    .av-hoy .bloque-hoy .curso { font-weight: 700; }
+    .av-hoy .bloque-hoy .hora { font-size: .82rem; opacity: .9; font-variant-numeric: tabular-nums; }
+    .av-hoy .sin-clases { font-size: .88rem; opacity: .85; }
+
+    .av-cursos {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.1rem;
+    }
+    .av-curso {
+        background: #fff;
+        border: 1px solid #e3ddc9;
+        border-radius: .6rem;
+        padding: 1.3rem 1.4rem;
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        border-top: 4px solid var(--verde);
+        transition: box-shadow .15s, transform .12s;
+    }
+    .av-curso:hover { box-shadow: 0 4px 16px rgba(13,59,46,.15); transform: translateY(-2px); }
+    .av-curso h3 { margin: 0 0 .3rem; color: var(--verde-oscuro); font-size: 1rem; }
+    .av-curso p { margin: 0; color: #6b7a72; font-size: .85rem; }
+
+    .av-vacio {
+        background: #fff; border: 1px dashed var(--dorado); border-radius: .6rem;
+        padding: 2rem; text-align: center; color: #6b7a72;
+    }
+</style>
+{% endblock %}
 {% block contenido %}
-<div style="text-align:center; padding:3rem 1rem; background:#fff; border-radius:.6rem; border-top:4px solid var(--dorado)">
-    <h1 style="color:var(--verde-oscuro)">🎓 Aula Virtual</h1>
-    <p style="color:#6b7a72; max-width:480px; margin:0 auto">
-        Todavía no está construida. Aquí irán las clases, materiales y el registro de
-        asistencia virtual por inicio de sesión, con roles de docente y estudiante.
-    </p>
+<div class="migas"><a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo; Aula Virtual</div>
+
+<h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Aula Virtual</h1>
+
+{% if sin_docente %}
+<div class="av-vacio">
+    <p><strong>Esta cuenta no está vinculada a ningún Docente.</strong></p>
+    <p>El Aula Virtual, por ahora, es para docentes con acceso creado desde Control Docentes.</p>
 </div>
+{% else %}
+
+<div class="av-hoy">
+    <div class="fecha">Hoy — {{ hoy|date:"l j \d\e F" }}</div>
+    {% if bloques_hoy %}
+        {% for bloque in bloques_hoy %}
+        <div class="bloque-hoy">
+            <span class="curso">{{ bloque.oferta_curso.curso.nombre }}</span>
+            <span class="hora">{{ bloque.hora_pedagogica_inicio.hora_inicio|time:"H:i" }}–{{ bloque.hora_pedagogica_fin.hora_fin|time:"H:i" }}</span>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="sin-clases">No tienes bloques programados hoy.</div>
+    {% endif %}
+</div>
+
+<h2 style="color:var(--verde-oscuro); font-size:1.05rem; margin-bottom:1rem;">Mis cursos — período en curso</h2>
+{% if asignaciones %}
+<div class="av-cursos">
+    {% for a in asignaciones %}
+    <a class="av-curso" href="{% url 'asistencia:aula_virtual_curso' a.pk %}">
+        <h3>{{ a.oferta_curso.curso.nombre }}</h3>
+        <p>{{ a.aula }} — {{ a.oferta_curso.periodo_academico }}</p>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="av-vacio">No tienes cursos asignados en un período que esté "en curso" ahora mismo.</div>
+{% endif %}
+
+{% endif %}
 {% endblock %}

@@ -298,6 +298,36 @@ class BloqueHorario(models.Model):
         )
 
 
+class MaterialClase(models.Model):
+    """Aula Virtual — material que el Docente publica para el Aula (sección)
+    a la que dicta, según su Asignación. Se guarda como enlace externo
+    (Drive, YouTube, etc.), no como archivo subido: el servidor de
+    despliegue no garantiza guardar archivos entre reinicios, y un enlace
+    no tiene ese riesgo. Todavía no hay Cadetes/Estudiantes con cuenta en
+    el sistema, así que por ahora solo lo ve el propio Docente y el staff;
+    en cuanto exista esa cuenta, se le muestra lo mismo sin cambiar el
+    modelo."""
+
+    class Tipo(models.TextChoices):
+        ENLACE = "ENLACE", "Enlace (Drive, YouTube, etc.)"
+        TEXTO = "TEXTO", "Aviso / texto"
+
+    asignacion = models.ForeignKey(Asignacion, on_delete=models.CASCADE, related_name="materiales")
+    titulo = models.CharField(max_length=200)
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, default=Tipo.ENLACE)
+    enlace = models.URLField("Enlace", blank=True)
+    contenido = models.TextField("Contenido / descripción", blank=True)
+    fecha_publicacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Material de clase"
+        verbose_name_plural = "Materiales de clase (Aula Virtual)"
+        ordering = ["-fecha_publicacion"]
+
+    def __str__(self):
+        return f"{self.titulo} — {self.asignacion}"
+
+
 class MarcacionBiometrica(models.Model):
     class Tipo(models.TextChoices):
         ENTRADA = "ENTRADA", "Entrada"

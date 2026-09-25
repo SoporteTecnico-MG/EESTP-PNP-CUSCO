@@ -22,6 +22,7 @@ from .models import (
     Feriado,
     HoraPedagogica,
     MarcacionBiometrica,
+    MaterialClase,
     OfertaCurso,
     PeriodoAcademico,
     Persona,
@@ -95,9 +96,83 @@ def post_login_redirect(request):
 
 @login_required
 def aula_virtual(request):
-    """Marcador de posición — el Aula Virtual todavía no está construida, se
-    planificará como una fase aparte."""
-    return render(request, "asistencia/aula_virtual.html")
+    """Panel del Aula Virtual: por ahora es la vista del Docente — sus
+    asignaciones del período en curso, su horario de hoy y acceso a cada
+    curso. Falta el lado del Estudiante: no hay todavía ningún modelo de
+    Cadete/Estudiante con cuenta propia en el sistema."""
+    docente = getattr(request.user, "docente", None)
+    if docente is None:
+        return render(request, "asistencia/aula_virtual.html", {"sin_docente": True})
+
+    hoy = timezone.localdate()
+    dia_semana_hoy = hoy.isoweekday()
+
+    asignaciones = (
+        Asignacion.objects.filter(
+            docente=docente, oferta_curso__periodo_academico__estado=PeriodoAcademico.Estado.EN_CURSO
+        )
+        .select_related("aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico")
+        .order_by("oferta_curso__curso__nombre", "aula__numero")
+    )
+
+    bloques_hoy = (
+        BloqueHorario.objects.filter(
+            oferta_curso__asignaciones__in=asignaciones, dia_semana=dia_semana_hoy
+        )
+        .select_related("oferta_curso__curso", "hora_pedagogica_inicio", "hora_pedagogica_fin")
+        .distinct()
+        .order_by("hora_pedagogica_inicio__numero_bloque")
+    )
+
+    return render(
+        request,
+        "asistencia/aula_virtual.html",
+        {
+            "docente": docente,
+            "asignaciones": asignaciones,
+            "bloques_hoy": bloques_hoy,
+            "hoy": hoy,
+        },
+    )
+
+
+@login_required
+def aula_virtual_curso(request, asignacion_id):
+    """Detalle de un curso del Docente dentro del Aula Virtual: su horario
+    semanal y los materiales que publicó para esa Aula (sección). Solo el
+    Docente asignado (o el staff) puede entrar y publicar materiales."""
+    asignacion = get_object_or_404(
+        Asignacion.objects.select_related(
+            "aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico", "docente"
+        ),
+        pk=asignacion_id,
+    )
+    docente = getattr(request.user, "docente", None)
+    if not request.user.is_staff and (docente is None or docente.pk != asignacion.docente_id):
+        return redirect("asistencia:aula_virtual")
+
+    if request.method == "POST":
+        titulo = request.POST.get("titulo", "").strip()
+        tipo = request.POST.get("tipo", MaterialClase.Tipo.ENLACE)
+        enlace = request.POST.get("enlace", "").strip()
+        contenido = request.POST.get("contenido", "").strip()
+        if titulo:
+            MaterialClase.objects.create(
+                asignacion=asignacion, titulo=titulo, tipo=tipo, enlace=enlace, contenido=contenido,
+            )
+            registrar_actividad(request, f"Publicó material \"{titulo}\" en {asignacion}")
+            return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
+
+    bloques = asignacion.oferta_curso.bloques.select_related(
+        "hora_pedagogica_inicio", "hora_pedagogica_fin"
+    ).order_by("dia_semana", "hora_pedagogica_inicio__numero_bloque")
+    materiales = asignacion.materiales.all()
+
+    return render(
+        request,
+        "asistencia/aula_virtual_curso.html",
+        {"asignacion": asignacion, "bloques": bloques, "materiales": materiales},
+    )
 
 
 @login_required
