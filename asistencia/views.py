@@ -101,15 +101,39 @@ def aula_virtual(request):
     curso. Falta el lado del Estudiante: no hay todavía ningún modelo de
     Cadete/Estudiante con cuenta propia en el sistema."""
     docente = getattr(request.user, "docente", None)
+    vista_previa = False
+
+    if docente is None and request.user.is_staff:
+        docente_id = request.GET.get("como_docente")
+        if docente_id:
+            docente = Docente.objects.filter(pk=docente_id).first()
+            vista_previa = docente is not None
+        if docente is None:
+            return render(
+                request,
+                "asistencia/aula_virtual.html",
+                {
+                    "sin_docente": True,
+                    "es_staff": True,
+                    "docentes": Docente.objects.order_by("apellidos_nombres"),
+                },
+            )
+
     if docente is None:
         return render(request, "asistencia/aula_virtual.html", {"sin_docente": True})
 
     hoy = timezone.localdate()
     dia_semana_hoy = hoy.isoweekday()
 
+    # "Período en curso" se define por fecha (hoy cae entre su inicio y su
+    # fin), no por el campo "estado" — ese campo lo pone jefatura a mano y
+    # en la práctica no se actualiza siempre a tiempo, así que un período
+    # puede seguir en "Planificado" aunque ya esté dictándose.
     asignaciones = (
         Asignacion.objects.filter(
-            docente=docente, oferta_curso__periodo_academico__estado=PeriodoAcademico.Estado.EN_CURSO
+            docente=docente,
+            oferta_curso__periodo_academico__fecha_inicio__lte=hoy,
+            oferta_curso__periodo_academico__fecha_fin__gte=hoy,
         )
         .select_related("aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico")
         .order_by("oferta_curso__curso__nombre", "aula__numero")
@@ -129,6 +153,7 @@ def aula_virtual(request):
         "asistencia/aula_virtual.html",
         {
             "docente": docente,
+            "vista_previa": vista_previa,
             "asignaciones": asignaciones,
             "bloques_hoy": bloques_hoy,
             "hoy": hoy,

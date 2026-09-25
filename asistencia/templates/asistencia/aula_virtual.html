@@ -52,9 +52,30 @@
 {% if sin_docente %}
 <div class="av-vacio">
     <p><strong>Esta cuenta no está vinculada a ningún Docente.</strong></p>
-    <p>El Aula Virtual, por ahora, es para docentes con acceso creado desde Control Docentes.</p>
+    <p>El Aula Virtual es para docentes con acceso creado desde Control Docentes.</p>
+    {% if es_staff %}
+    <form method="get" style="max-width:420px; margin:1.2rem auto 0; text-align:left;">
+        <label for="id_como_docente" style="display:block; font-size:.8rem; font-weight:600; color:#6b7a72; margin-bottom:.4rem;">
+            Ver como (vista previa de administrador):
+        </label>
+        <select name="como_docente" id="id_como_docente" onchange="this.form.submit()"
+            style="width:100%; padding:.55rem .6rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.88rem;">
+            <option value="">— Elige un docente —</option>
+            {% for d in docentes %}
+            <option value="{{ d.pk }}">{{ d.apellidos_nombres }}</option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
 </div>
 {% else %}
+
+{% if vista_previa %}
+<div style="background:#fbf0dc; border:1px solid #e0c468; color:#8a6d1a; border-radius:.4rem; padding:.7rem 1rem; margin-bottom:1.2rem; font-size:.85rem;">
+    Vista previa de administrador — estás viendo el Aula Virtual como <strong>{{ docente.apellidos_nombres }}</strong>,
+    no es tu propia cuenta. <a href="{% url 'asistencia:aula_virtual' %}" style="color:#8a6d1a;">Salir de la vista previa</a>.
+</div>
+{% endif %}
 
 <div class="av-hoy">
     <div class="fecha">Hoy — {{ hoy|date:"l j \d\e F" }}</div>
@@ -70,7 +91,7 @@
     {% endif %}
 </div>
 
-<h2 style="color:var(--verde-oscuro); font-size:1.05rem; margin-bottom:1rem;">Mis cursos — período en curso</h2>
+<h2 style="color:var(--verde-oscuro); font-size:1.05rem; margin-bottom:1rem;">Mis cursos — período de hoy ({{ hoy|date:"d/m/Y" }})</h2>
 {% if asignaciones %}
 <div class="av-cursos">
     {% for a in asignaciones %}
@@ -81,7 +102,7 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="av-vacio">No tienes cursos asignados en un período que esté "en curso" ahora mismo.</div>
+<div class="av-vacio">No tienes cursos asignados en un período cuyas fechas cubran hoy.</div>
 {% endif %}
 
 {% endif %}
