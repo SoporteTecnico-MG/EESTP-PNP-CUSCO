@@ -40,6 +40,7 @@
         width: 100%; padding: .55rem .6rem; border: 1px solid #d7d2bf; border-radius: .35rem; font-size: .88rem; font-family: inherit;
     }
     .form-material textarea { resize: vertical; min-height: 4.5rem; }
+    .error-campo { color: #a83232; font-size: .78rem; margin-top: .25rem; }
     .btn-guardar {
         background: var(--verde-oscuro); color: #fff; font-weight: 700; border: none;
         border-radius: .4rem; padding: .6rem 1.2rem; font-size: .88rem; cursor: pointer; margin-top: 1rem;
@@ -77,28 +78,34 @@
             <div class="fecha">Publicado el {{ m.fecha_publicacion|date:"d/m/Y H:i" }}</div>
         </div>
         {% empty %}
-        <p class="av-vacio">Todavía no publicaste ningún material en este curso.</p>
+        <p class="av-vacio">Todavía no se publicó ningún material en este curso.</p>
         {% endfor %}
 
+        {% if es_titular %}
         <form method="post" class="form-material">
             {% csrf_token %}
-            <label for="id_titulo">Título</label>
-            <input type="text" id="id_titulo" name="titulo" required maxlength="200">
+            <label for="{{ form.titulo.id_for_label }}">Título</label>
+            {{ form.titulo }}
+            {% for error in form.titulo.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
 
-            <label for="id_tipo">Tipo</label>
-            <select id="id_tipo" name="tipo">
-                <option value="ENLACE">Enlace (Drive, YouTube, etc.)</option>
-                <option value="TEXTO">Aviso / texto</option>
-            </select>
+            <label for="{{ form.tipo.id_for_label }}">Tipo</label>
+            {{ form.tipo }}
 
-            <label for="id_enlace">Enlace (si aplica)</label>
-            <input type="url" id="id_enlace" name="enlace" placeholder="https://...">
+            <label for="{{ form.enlace.id_for_label }}">Enlace (si aplica)</label>
+            {{ form.enlace }}
+            {% for error in form.enlace.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
 
-            <label for="id_contenido">Descripción / contenido</label>
-            <textarea id="id_contenido" name="contenido"></textarea>
+            <label for="{{ form.contenido.id_for_label }}">Descripción / contenido</label>
+            {{ form.contenido }}
+            {% for error in form.contenido.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
 
             <button type="submit" class="btn-guardar">Publicar</button>
         </form>
+        {% else %}
+        <p class="av-vacio" style="margin-top:1rem;">
+            Estás viendo este curso en modo lectura — solo el docente titular puede publicar aquí.
+        </p>
+        {% endif %}
     </div>
 
     <div class="tarjeta">

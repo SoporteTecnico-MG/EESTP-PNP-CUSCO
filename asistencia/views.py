@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
+from django import forms
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, ProtectedError
 from django.http import JsonResponse
@@ -122,6 +123,9 @@ def aula_virtual(request):
     if docente is None:
         return render(request, "asistencia/aula_virtual.html", {"sin_docente": True})
 
+    if not vista_previa and docente.password_temporal:
+        return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
+
     hoy = timezone.localdate()
     dia_semana_hoy = hoy.isoweekday()
 
@@ -161,11 +165,28 @@ def aula_virtual(request):
     )
 
 
+class MaterialClaseForm(forms.ModelForm):
+    class Meta:
+        model = MaterialClase
+        fields = ["titulo", "tipo", "enlace", "contenido"]
+        widgets = {"contenido": forms.Textarea(attrs={"rows": 3})}
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("tipo") == MaterialClase.Tipo.ENLACE and not cleaned.get("enlace"):
+            self.add_error("enlace", "Ingresa el enlace del material.")
+        if cleaned.get("tipo") == MaterialClase.Tipo.TEXTO and not cleaned.get("contenido"):
+            self.add_error("contenido", "Escribe el contenido del aviso.")
+        return cleaned
+
+
 @login_required
 def aula_virtual_curso(request, asignacion_id):
     """Detalle de un curso del Docente dentro del Aula Virtual: su horario
     semanal y los materiales que publicó para esa Aula (sección). Solo el
-    Docente asignado (o el staff) puede entrar y publicar materiales."""
+    Docente asignado puede publicar — el staff puede entrar a supervisar
+    (por ejemplo, en la vista previa de administrador) pero en modo
+    lectura, nunca publica en nombre del docente."""
     asignacion = get_object_or_404(
         Asignacion.objects.select_related(
             "aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico", "docente"
@@ -173,19 +194,22 @@ def aula_virtual_curso(request, asignacion_id):
         pk=asignacion_id,
     )
     docente = getattr(request.user, "docente", None)
-    if not request.user.is_staff and (docente is None or docente.pk != asignacion.docente_id):
+    es_titular = docente is not None and docente.pk == asignacion.docente_id
+    if not es_titular and not request.user.is_staff:
         return redirect("asistencia:aula_virtual")
+    if es_titular and docente.password_temporal:
+        return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
 
+    form = MaterialClaseForm()
     if request.method == "POST":
-        titulo = request.POST.get("titulo", "").strip()
-        tipo = request.POST.get("tipo", MaterialClase.Tipo.ENLACE)
-        enlace = request.POST.get("enlace", "").strip()
-        contenido = request.POST.get("contenido", "").strip()
-        if titulo:
-            MaterialClase.objects.create(
-                asignacion=asignacion, titulo=titulo, tipo=tipo, enlace=enlace, contenido=contenido,
-            )
-            registrar_actividad(request, f"Publicó material \"{titulo}\" en {asignacion}")
+        if not es_titular:
+            return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
+        form = MaterialClaseForm(request.POST)
+        if form.is_valid():
+            material = form.save(commit=False)
+            material.asignacion = asignacion
+            material.save()
+            registrar_actividad(request, f"Publicó material \"{material.titulo}\" en {asignacion}")
             return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
 
     bloques = asignacion.oferta_curso.bloques.select_related(
@@ -196,7 +220,13 @@ def aula_virtual_curso(request, asignacion_id):
     return render(
         request,
         "asistencia/aula_virtual_curso.html",
-        {"asignacion": asignacion, "bloques": bloques, "materiales": materiales},
+        {
+            "asignacion": asignacion,
+            "bloques": bloques,
+            "materiales": materiales,
+            "form": form,
+            "es_titular": es_titular,
+        },
     )
 
 
@@ -225,6 +255,9 @@ def mi_cuenta(request):
         if clave_form.is_valid():
             clave_form.save()
             update_session_auth_hash(request, user)
+            if hasattr(user, "docente") and user.docente.password_temporal:
+                user.docente.password_temporal = False
+                user.docente.save(update_fields=["password_temporal"])
             registrar_actividad(request, "Cambió su contraseña")
             return redirect(f"{reverse('asistencia:mi_cuenta')}?ok_clave=1")
     else:
@@ -237,6 +270,7 @@ def mi_cuenta(request):
             "clave_form": clave_form,
             "ok_datos": request.GET.get("ok_datos") == "1",
             "ok_clave": request.GET.get("ok_clave") == "1",
+            "debe_cambiar_clave": request.GET.get("debe_cambiar_clave") == "1",
         },
     )
 

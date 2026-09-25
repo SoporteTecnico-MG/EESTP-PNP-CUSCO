@@ -68,6 +68,13 @@
 
 <h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Mi cuenta</h1>
 
+{% if debe_cambiar_clave %}
+<div style="background:#fde2e2; border:1px solid #e08a8a; color:#7a1f1f; padding:.8rem 1rem; border-radius:.4rem; margin-bottom:1.2rem; font-size:.88rem;">
+    <strong>Tienes que cambiar tu contraseña antes de continuar.</strong>
+    Estás usando la contraseña temporal (tu DNI) — cámbiala aquí abajo para poder entrar al Aula Virtual.
+</div>
+{% endif %}
+
 <div class="cuenta-grid">
     <div class="cuenta-tarjeta">
         <h2>Datos personales</h2>

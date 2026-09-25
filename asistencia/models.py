@@ -48,6 +48,11 @@ class Docente(models.Model):
         help_text="Cuenta para entrar al Aula Virtual — se crea con la acción "
         '"Crear acceso al Aula Virtual" del listado de Docentes.',
     )
+    password_temporal = models.BooleanField(
+        default=False,
+        help_text="Su contraseña sigue siendo la que se le puso por defecto (su DNI) — "
+        "el sistema lo obliga a cambiarla antes de dejarlo ver el Aula Virtual.",
+    )
 
     class Meta:
         verbose_name = "Docente"
@@ -86,7 +91,8 @@ class Docente(models.Model):
         grupo_docentes, _ = Group.objects.get_or_create(name="Docentes")
         usuario.groups.add(grupo_docentes)
         self.usuario = usuario
-        self.save(update_fields=["usuario"])
+        self.password_temporal = True
+        self.save(update_fields=["usuario", "password_temporal"])
         return usuario, creado
 
 
