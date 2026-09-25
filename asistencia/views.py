@@ -20,6 +20,7 @@ from .models import (
     Curso,
     Docente,
     Especialidad,
+    Estudiante,
     Feriado,
     HoraPedagogica,
     MarcacionBiometrica,
@@ -97,19 +98,27 @@ def post_login_redirect(request):
 
 @login_required
 def aula_virtual(request):
-    """Panel del Aula Virtual: por ahora es la vista del Docente — sus
-    asignaciones del período en curso, su horario de hoy y acceso a cada
-    curso. Falta el lado del Estudiante: no hay todavía ningún modelo de
-    Cadete/Estudiante con cuenta propia en el sistema."""
+    """Panel del Aula Virtual — sirve tanto a Docentes como a Estudiantes:
+    sus cursos del período que cubre la fecha de hoy, el horario de hoy, y
+    acceso a cada curso (el Docente publica materiales, el Estudiante solo
+    los lee). No hay modelo de "Matrícula" aparte: el Estudiante pertenece
+    a un Aula, y las Asignaciones de esa Aula ya son sus cursos."""
     docente = getattr(request.user, "docente", None)
+    estudiante = getattr(request.user, "estudiante", None)
+    titular = docente or estudiante
+    rol = "Docente" if docente else ("Estudiante" if estudiante else None)
     vista_previa = False
 
-    if docente is None and request.user.is_staff:
+    if titular is None and request.user.is_staff:
         docente_id = request.GET.get("como_docente")
+        estudiante_id = request.GET.get("como_estudiante")
         if docente_id:
             docente = Docente.objects.filter(pk=docente_id).first()
-            vista_previa = docente is not None
-        if docente is None:
+            titular, rol, vista_previa = docente, "Docente", docente is not None
+        elif estudiante_id:
+            estudiante = Estudiante.objects.filter(pk=estudiante_id).first()
+            titular, rol, vista_previa = estudiante, "Estudiante", estudiante is not None
+        if titular is None:
             return render(
                 request,
                 "asistencia/aula_virtual.html",
@@ -117,13 +126,14 @@ def aula_virtual(request):
                     "sin_docente": True,
                     "es_staff": True,
                     "docentes": Docente.objects.order_by("apellidos_nombres"),
+                    "estudiantes": Estudiante.objects.order_by("apellidos_nombres"),
                 },
             )
 
-    if docente is None:
+    if titular is None:
         return render(request, "asistencia/aula_virtual.html", {"sin_docente": True})
 
-    if not vista_previa and docente.password_temporal:
+    if not vista_previa and titular.password_temporal:
         return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
 
     hoy = timezone.localdate()
@@ -133,15 +143,17 @@ def aula_virtual(request):
     # fin), no por el campo "estado" — ese campo lo pone jefatura a mano y
     # en la práctica no se actualiza siempre a tiempo, así que un período
     # puede seguir en "Planificado" aunque ya esté dictándose.
-    asignaciones = (
-        Asignacion.objects.filter(
-            docente=docente,
-            oferta_curso__periodo_academico__fecha_inicio__lte=hoy,
-            oferta_curso__periodo_academico__fecha_fin__gte=hoy,
-        )
-        .select_related("aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico")
-        .order_by("oferta_curso__curso__nombre", "aula__numero")
-    )
+    filtro_fecha = {
+        "oferta_curso__periodo_academico__fecha_inicio__lte": hoy,
+        "oferta_curso__periodo_academico__fecha_fin__gte": hoy,
+    }
+    if rol == "Docente":
+        asignaciones = Asignacion.objects.filter(docente=docente, **filtro_fecha)
+    else:
+        asignaciones = Asignacion.objects.filter(aula=estudiante.aula, **filtro_fecha)
+    asignaciones = asignaciones.select_related(
+        "aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico"
+    ).order_by("oferta_curso__curso__nombre", "aula__numero")
 
     bloques_hoy = (
         BloqueHorario.objects.filter(
@@ -156,7 +168,8 @@ def aula_virtual(request):
         request,
         "asistencia/aula_virtual.html",
         {
-            "docente": docente,
+            "rol": rol,
+            "titular": titular,
             "vista_previa": vista_previa,
             "asignaciones": asignaciones,
             "bloques_hoy": bloques_hoy,
@@ -194,10 +207,14 @@ def aula_virtual_curso(request, asignacion_id):
         pk=asignacion_id,
     )
     docente = getattr(request.user, "docente", None)
+    estudiante = getattr(request.user, "estudiante", None)
     es_titular = docente is not None and docente.pk == asignacion.docente_id
-    if not es_titular and not request.user.is_staff:
+    es_estudiante_del_aula = estudiante is not None and estudiante.aula_id == asignacion.aula_id
+    if not es_titular and not es_estudiante_del_aula and not request.user.is_staff:
         return redirect("asistencia:aula_virtual")
     if es_titular and docente.password_temporal:
+        return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
+    if es_estudiante_del_aula and estudiante.password_temporal:
         return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
 
     form = MaterialClaseForm()
@@ -258,6 +275,9 @@ def mi_cuenta(request):
             if hasattr(user, "docente") and user.docente.password_temporal:
                 user.docente.password_temporal = False
                 user.docente.save(update_fields=["password_temporal"])
+            if hasattr(user, "estudiante") and user.estudiante.password_temporal:
+                user.estudiante.password_temporal = False
+                user.estudiante.save(update_fields=["password_temporal"])
             registrar_actividad(request, "Cambió su contraseña")
             return redirect(f"{reverse('asistencia:mi_cuenta')}?ok_clave=1")
     else:

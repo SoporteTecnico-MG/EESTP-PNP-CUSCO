@@ -51,28 +51,42 @@
 
 {% if sin_docente %}
 <div class="av-vacio">
-    <p><strong>Esta cuenta no está vinculada a ningún Docente.</strong></p>
-    <p>El Aula Virtual es para docentes con acceso creado desde Control Docentes.</p>
+    <p><strong>Esta cuenta no está vinculada a ningún Docente ni Estudiante.</strong></p>
+    <p>El Aula Virtual es para cuentas con acceso creado desde Control Docentes.</p>
     {% if es_staff %}
-    <form method="get" style="max-width:420px; margin:1.2rem auto 0; text-align:left;">
-        <label for="id_como_docente" style="display:block; font-size:.8rem; font-weight:600; color:#6b7a72; margin-bottom:.4rem;">
-            Ver como (vista previa de administrador):
-        </label>
-        <select name="como_docente" id="id_como_docente" onchange="this.form.submit()"
-            style="width:100%; padding:.55rem .6rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.88rem;">
-            <option value="">— Elige un docente —</option>
-            {% for d in docentes %}
-            <option value="{{ d.pk }}">{{ d.apellidos_nombres }}</option>
-            {% endfor %}
-        </select>
-    </form>
+    <div style="display:flex; gap:1.5rem; flex-wrap:wrap; justify-content:center; margin-top:1.2rem;">
+        <form method="get" style="max-width:340px; text-align:left;">
+            <label for="id_como_docente" style="display:block; font-size:.8rem; font-weight:600; color:#6b7a72; margin-bottom:.4rem;">
+                Ver como Docente (vista previa):
+            </label>
+            <select name="como_docente" id="id_como_docente" onchange="this.form.submit()"
+                style="width:100%; padding:.55rem .6rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.88rem;">
+                <option value="">— Elige un docente —</option>
+                {% for d in docentes %}
+                <option value="{{ d.pk }}">{{ d.apellidos_nombres }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <form method="get" style="max-width:340px; text-align:left;">
+            <label for="id_como_estudiante" style="display:block; font-size:.8rem; font-weight:600; color:#6b7a72; margin-bottom:.4rem;">
+                Ver como Estudiante (vista previa):
+            </label>
+            <select name="como_estudiante" id="id_como_estudiante" onchange="this.form.submit()"
+                style="width:100%; padding:.55rem .6rem; border:1px solid #d7d2bf; border-radius:.35rem; font-size:.88rem;">
+                <option value="">— Elige un estudiante —</option>
+                {% for e in estudiantes %}
+                <option value="{{ e.pk }}">{{ e.apellidos_nombres }} — {{ e.aula }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
     {% endif %}
 </div>
 {% else %}
 
 {% if vista_previa %}
 <div style="background:#fbf0dc; border:1px solid #e0c468; color:#8a6d1a; border-radius:.4rem; padding:.7rem 1rem; margin-bottom:1.2rem; font-size:.85rem;">
-    Vista previa de administrador — estás viendo el Aula Virtual como <strong>{{ docente.apellidos_nombres }}</strong>,
+    Vista previa de administrador — estás viendo el Aula Virtual como {{ rol|lower }} <strong>{{ titular.apellidos_nombres }}</strong>,
     no es tu propia cuenta. <a href="{% url 'asistencia:aula_virtual' %}" style="color:#8a6d1a;">Salir de la vista previa</a>.
 </div>
 {% endif %}

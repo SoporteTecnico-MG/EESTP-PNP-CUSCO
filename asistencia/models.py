@@ -145,6 +145,76 @@ class Aula(models.Model):
         return f"{letra}_{self.numero}"
 
 
+class Estudiante(models.Model):
+    """Cadete/Alumno del Aula Virtual. No hace falta un modelo aparte de
+    "Matrícula": el Aula ya es la sección/cohorte del estudiante, y los
+    cursos que le corresponden salen solos de las Asignaciones hechas a
+    esa misma Aula (docente + curso + aula) — no hay que inscribirlo curso
+    por curso."""
+
+    class Estado(models.TextChoices):
+        ACTIVO = "ACTIVO", "Activo"
+        RETIRADO = "RETIRADO", "Retirado"
+
+    dni = models.CharField(max_length=8, unique=True, null=True, blank=True, db_index=True)
+    apellidos_nombres = models.CharField(max_length=200)
+    celular = models.CharField(max_length=20, blank=True)
+    aula = models.ForeignKey(Aula, on_delete=models.PROTECT, related_name="estudiantes")
+    estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)
+    fecha_ingreso = models.DateField(null=True, blank=True)
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="estudiante",
+        help_text="Cuenta para entrar al Aula Virtual — se crea con la acción "
+        '"Crear acceso al Aula Virtual" del listado de Estudiantes.',
+    )
+    password_temporal = models.BooleanField(
+        default=False,
+        help_text="Su contraseña sigue siendo la que se le puso por defecto (su DNI) — "
+        "el sistema lo obliga a cambiarla antes de dejarlo ver el Aula Virtual.",
+    )
+
+    class Meta:
+        verbose_name = "Estudiante"
+        verbose_name_plural = "Estudiantes"
+        ordering = ["apellidos_nombres"]
+
+    def __str__(self):
+        return f"{self.apellidos_nombres} ({self.aula})"
+
+    def crear_acceso_aula_virtual(self):
+        """Crea (si no existe ya) el usuario para entrar al Aula Virtual:
+        usuario "<DNI>@cadete.pnp.edu", contraseña por defecto el propio
+        DNI. Requiere que el Estudiante tenga DNI. Devuelve (user, creado: bool)."""
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        if self.usuario_id:
+            return self.usuario, False
+        if not self.dni:
+            raise ValueError(f"{self.apellidos_nombres} no tiene DNI registrado — no se puede crear su acceso.")
+
+        User = get_user_model()
+        username = f"{self.dni}@cadete.pnp.edu"
+        usuario = User.objects.filter(username=username).first()
+        creado = False
+        if usuario is None:
+            nombres = self.apellidos_nombres.split()
+            usuario = User.objects.create_user(
+                username=username,
+                password=self.dni,
+                first_name=nombres[-1] if nombres else "",
+                last_name=" ".join(nombres[:-1]) if len(nombres) > 1 else "",
+            )
+            creado = True
+        grupo_estudiantes, _ = Group.objects.get_or_create(name="Estudiantes")
+        usuario.groups.add(grupo_estudiantes)
+        self.usuario = usuario
+        self.password_temporal = True
+        self.save(update_fields=["usuario", "password_temporal"])
+        return usuario, creado
+
+
 class PeriodoAcademico(models.Model):
     class Estado(models.TextChoices):
         PLANIFICADO = "PLANIFICADO", "Planificado"

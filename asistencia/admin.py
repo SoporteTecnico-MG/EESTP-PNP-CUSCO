@@ -408,6 +408,39 @@ class DocenteAdmin(admin.ModelAdmin):
 proceso_docente_site.register(models.Docente, DocenteAdmin)
 
 
+@admin.register(models.Estudiante, site=control_docentes_site)
+class EstudianteAdmin(admin.ModelAdmin):
+    list_display = ("dni", "apellidos_nombres", "aula", "celular", "estado", "col_acceso_aula_virtual")
+    list_filter = ("estado", "aula__promocion", "aula")
+    search_fields = ("dni", "apellidos_nombres")
+    ordering = ("apellidos_nombres",)
+    actions = ["crear_acceso_aula_virtual_action"]
+
+    @admin.display(description="Aula Virtual")
+    def col_acceso_aula_virtual(self, obj):
+        return obj.usuario.username if obj.usuario_id else "—"
+
+    @admin.action(description="Crear acceso al Aula Virtual (usuario DNI@cadete.pnp.edu)")
+    def crear_acceso_aula_virtual_action(self, request, queryset):
+        creados = ya_tenian = fallidos = 0
+        for estudiante in queryset:
+            if estudiante.usuario_id:
+                ya_tenian += 1
+                continue
+            try:
+                _, creado = estudiante.crear_acceso_aula_virtual()
+                if creado:
+                    creados += 1
+            except ValueError as exc:
+                fallidos += 1
+                self.message_user(request, str(exc), level="warning")
+        self.message_user(
+            request,
+            f"Accesos creados: {creados} (usuario: DNI@cadete.pnp.edu, contraseña por defecto: su DNI). "
+            f"Ya tenían acceso: {ya_tenian}. Sin procesar (sin DNI): {fallidos}.",
+        )
+
+
 @admin.register(models.Persona, site=proceso_docente_site)
 class PersonaAdmin(admin.ModelAdmin):
     """Registro de referencia por DNI — se llena solo al guardar un
