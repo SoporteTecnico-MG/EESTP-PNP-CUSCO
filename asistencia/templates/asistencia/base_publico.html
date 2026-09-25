@@ -68,8 +68,36 @@
             align-items: center;
             gap: .75rem;
         }
+        .menu-hamburguesa { display: none; }
+        .boton-menu {
+            display: none;
+            background: none;
+            border: 1px solid rgba(255,255,255,.5);
+            border-radius: .35rem;
+            color: #fdfaf0;
+            font-size: 1.3rem;
+            line-height: 1;
+            padding: .35rem .6rem;
+            cursor: pointer;
+            order: 3;
+        }
         @media (max-width: 820px) {
-            nav.nav-principal { display: none; }
+            .marca { order: 1; }
+            .boton-menu { display: inline-block; order: 2; }
+            .acceso { order: 3; }
+            nav.nav-principal {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0;
+                width: 100%;
+                order: 4;
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height .2s ease;
+            }
+            nav.nav-principal a { padding: .6rem 0; width: 100%; border-top: 1px solid rgba(255,255,255,.15); }
+            .menu-hamburguesa:checked ~ nav.nav-principal { max-height: 16rem; }
         }
         .btn-dorado {
             background: var(--dorado);
@@ -200,6 +228,8 @@
 </head>
 <body>
     <header class="top">
+        <input type="checkbox" id="menu-toggle" class="menu-hamburguesa">
+        <label for="menu-toggle" class="boton-menu" aria-label="Abrir menú">☰</label>
         <div class="marca">
             <div class="logos-institucionales">
                 <img src="{% static 'asistencia/img/logo_eestp.png' %}" alt="Logo EESTP PNP CUSCO">

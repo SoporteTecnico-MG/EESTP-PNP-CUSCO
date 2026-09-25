@@ -25,7 +25,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False, cast=bool)
+# Se lee como texto (no con cast=bool) para que un valor mal puesto en el
+# entorno de despliegue (p. ej. "release" en vez de "True"/"False") no
+# tumbe la aplicación entera al arrancar — cualquier valor que no sea
+# reconocido como verdadero cae al lado seguro (DEBUG=False).
+DEBUG = config('DEBUG', default='False').strip().lower() in ('true', '1', 'yes', 'on')
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
@@ -178,13 +182,3 @@ if not DEBUG:
     SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
