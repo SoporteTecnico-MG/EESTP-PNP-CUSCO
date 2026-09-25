@@ -1,4 +1,4 @@
-{% extends "asistencia/base_publico.html" %}
+{% extends base_template|default:"asistencia/base_publico.html" %}
 {% block titulo %}Mi cuenta — EESTP PNP CUSCO{% endblock %}
 {% block extra_head %}
 <style>
@@ -64,7 +64,10 @@
 </style>
 {% endblock %}
 {% block contenido %}
-<div class="migas"><a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo; Mi cuenta</div>
+<div class="migas">
+    {% if rol %}<a href="{% url 'asistencia:aula_virtual' %}">Mis cursos</a>{% else %}<a href="{% url 'asistencia:home' %}">Inicio</a>{% endif %}
+    &rsaquo; Mi cuenta
+</div>
 
 <h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Mi cuenta</h1>
 

@@ -256,6 +256,9 @@ def mi_cuenta(request):
     from django.contrib.auth.forms import PasswordChangeForm
 
     user = request.user
+    docente = getattr(user, "docente", None)
+    estudiante = getattr(user, "estudiante", None)
+    rol = "Docente" if docente else ("Estudiante" if estudiante else None)
     datos_form = None
     clave_form = None
 
@@ -272,13 +275,18 @@ def mi_cuenta(request):
         if clave_form.is_valid():
             clave_form.save()
             update_session_auth_hash(request, user)
-            if hasattr(user, "docente") and user.docente.password_temporal:
-                user.docente.password_temporal = False
-                user.docente.save(update_fields=["password_temporal"])
-            if hasattr(user, "estudiante") and user.estudiante.password_temporal:
-                user.estudiante.password_temporal = False
-                user.estudiante.save(update_fields=["password_temporal"])
+            if docente and docente.password_temporal:
+                docente.password_temporal = False
+                docente.save(update_fields=["password_temporal"])
+            if estudiante and estudiante.password_temporal:
+                estudiante.password_temporal = False
+                estudiante.save(update_fields=["password_temporal"])
             registrar_actividad(request, "Cambió su contraseña")
+            # Si es Docente o Estudiante, lo manda directo a su panel del
+            # Aula Virtual — no tiene sentido devolverlo a "Mi cuenta" justo
+            # después de cambiar la contraseña obligatoria.
+            if rol:
+                return redirect("asistencia:aula_virtual")
             return redirect(f"{reverse('asistencia:mi_cuenta')}?ok_clave=1")
     else:
         clave_form = PasswordChangeForm(user=user)
@@ -291,6 +299,8 @@ def mi_cuenta(request):
             "ok_datos": request.GET.get("ok_datos") == "1",
             "ok_clave": request.GET.get("ok_clave") == "1",
             "debe_cambiar_clave": request.GET.get("debe_cambiar_clave") == "1",
+            "rol": rol,
+            "base_template": "asistencia/base_aula_virtual.html" if rol else "asistencia/base_publico.html",
         },
     )
 

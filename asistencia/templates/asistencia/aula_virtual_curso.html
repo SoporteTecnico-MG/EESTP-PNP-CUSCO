@@ -1,4 +1,4 @@
-{% extends "asistencia/base_publico.html" %}
+{% extends "asistencia/base_aula_virtual.html" %}
 {% block titulo %}{{ asignacion.oferta_curso.curso.nombre }} — Aula Virtual{% endblock %}
 {% block extra_head %}
 <style>
@@ -56,8 +56,7 @@
 {% endblock %}
 {% block contenido %}
 <div class="migas">
-    <a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo;
-    <a href="{% url 'asistencia:aula_virtual' %}">Aula Virtual</a> &rsaquo;
+    <a href="{% url 'asistencia:aula_virtual' %}">Mis cursos</a> &rsaquo;
     {{ asignacion.oferta_curso.curso.nombre }}
 </div>
 

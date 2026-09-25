@@ -1,4 +1,4 @@
-{% extends "asistencia/base_publico.html" %}
+{% extends "asistencia/base_aula_virtual.html" %}
 {% block titulo %}Aula Virtual — EESTP PNP CUSCO{% endblock %}
 {% block extra_head %}
 <style>
@@ -45,9 +45,7 @@
 </style>
 {% endblock %}
 {% block contenido %}
-<div class="migas"><a href="{% url 'asistencia:home' %}">Inicio</a> &rsaquo; Aula Virtual</div>
-
-<h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Aula Virtual</h1>
+<h1 style="color:var(--verde-oscuro); font-size:1.4rem; margin-bottom:1.2rem;">Mis cursos</h1>
 
 {% if sin_docente %}
 <div class="av-vacio">
