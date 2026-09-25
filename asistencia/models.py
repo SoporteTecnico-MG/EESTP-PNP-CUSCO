@@ -404,6 +404,62 @@ class MaterialClase(models.Model):
         return f"{self.titulo} — {self.asignacion}"
 
 
+class Tarea(models.Model):
+    """Aula Virtual — tarea que el Docente asigna a su Aula (sección). Los
+    Estudiantes de esa Aula entregan como enlace (Drive, etc.) por la misma
+    razón que MaterialClase: no hay almacenamiento de archivos persistente."""
+
+    asignacion = models.ForeignKey(Asignacion, on_delete=models.CASCADE, related_name="tareas")
+    titulo = models.CharField(max_length=200)
+    descripcion = models.TextField(blank=True)
+    fecha_publicacion = models.DateTimeField(auto_now_add=True)
+    fecha_limite = models.DateTimeField("Fecha y hora límite de entrega")
+    puntaje_maximo = models.DecimalField(max_digits=5, decimal_places=2, default=20)
+
+    class Meta:
+        verbose_name = "Tarea"
+        verbose_name_plural = "Tareas (Aula Virtual)"
+        ordering = ["-fecha_limite"]
+
+    def __str__(self):
+        return f"{self.titulo} — {self.asignacion}"
+
+    def vencida(self):
+        from django.utils import timezone
+        return timezone.now() > self.fecha_limite
+
+
+class EntregaTarea(models.Model):
+    """Entrega de un Estudiante para una Tarea — una por estudiante, se
+    puede reemplazar (reenviar) mientras no esté calificada."""
+
+    tarea = models.ForeignKey(Tarea, on_delete=models.CASCADE, related_name="entregas")
+    estudiante = models.ForeignKey(Estudiante, on_delete=models.CASCADE, related_name="entregas")
+    enlace = models.URLField("Enlace de la entrega")
+    comentario = models.TextField("Comentario (opcional)", blank=True)
+    fecha_entrega = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    calificacion = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    comentario_docente = models.TextField(blank=True)
+    fecha_calificacion = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Entrega de tarea"
+        verbose_name_plural = "Entregas de tarea (Aula Virtual)"
+        ordering = ["-fecha_entrega"]
+        unique_together = ("tarea", "estudiante")
+
+    def __str__(self):
+        return f"{self.estudiante} — {self.tarea}"
+
+    @property
+    def calificada(self):
+        return self.calificacion is not None
+
+    def entregada_tarde(self):
+        return self.fecha_entrega > self.tarea.fecha_limite
+
+
 class MarcacionBiometrica(models.Model):
     class Tipo(models.TextChoices):
         ENTRADA = "ENTRADA", "Entrada"

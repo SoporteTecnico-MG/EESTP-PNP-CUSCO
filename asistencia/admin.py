@@ -572,6 +572,39 @@ class MaterialClaseAdmin(admin.ModelAdmin):
         return False
 
 
+@admin.register(models.Tarea, site=control_docentes_site)
+class TareaAdmin(admin.ModelAdmin):
+    """Solo lectura — igual que Materiales: el docente la asigna desde el
+    Aula Virtual, no desde acá."""
+
+    list_display = ("titulo", "asignacion", "fecha_limite", "puntaje_maximo", "fecha_publicacion")
+    list_filter = ("asignacion__oferta_curso__periodo_academico",)
+    search_fields = ("titulo", "asignacion__docente__apellidos_nombres", "asignacion__oferta_curso__curso__nombre")
+    ordering = ("-fecha_limite",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(models.EntregaTarea, site=control_docentes_site)
+class EntregaTareaAdmin(admin.ModelAdmin):
+    """Solo lectura — la calificación se hace desde el Aula Virtual."""
+
+    list_display = ("estudiante", "tarea", "fecha_entrega", "calificacion")
+    list_filter = ("tarea__asignacion__oferta_curso__periodo_academico",)
+    search_fields = ("estudiante__apellidos_nombres", "tarea__titulo")
+    ordering = ("-fecha_entrega",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(models.BloqueHorario, site=control_docentes_site)
 class BloqueHorarioAdmin(admin.ModelAdmin):
     """El listado plano de Django no sirve para esto: en vez de mostrarlo, 'Bloques

@@ -52,6 +52,25 @@
     table.horario-curso th { color: #6b7a72; font-size: .72rem; text-transform: uppercase; }
 
     .av-vacio { color: #9aa5a0; font-size: .85rem; font-style: italic; }
+
+    .columna-izquierda { display: flex; flex-direction: column; gap: 1.5rem; }
+
+    .tarea {
+        border: 1px solid #e3ddc9; border-radius: .5rem; padding: .9rem 1rem; margin-bottom: .8rem;
+        text-decoration: none; color: inherit; display: block; transition: box-shadow .15s;
+    }
+    .tarea:hover { box-shadow: 0 2px 10px rgba(13,59,46,.1); }
+    .tarea:last-child { margin-bottom: 0; }
+    .tarea h3 { margin: 0 0 .3rem; font-size: .95rem; color: var(--texto); }
+    .tarea .limite { font-size: .78rem; color: #6b7a72; }
+    .tarea .limite.vencida { color: #a83232; font-weight: 600; }
+    .estado-entrega {
+        display: inline-block; font-size: .68rem; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .03em; padding: .2rem .55rem; border-radius: 1rem; margin-top: .4rem;
+    }
+    .estado-entrega.pendiente { background: #fbf0dc; color: #8a6d1a; }
+    .estado-entrega.entregado { background: #e4f4e8; color: #1c5c33; }
+    .estado-entrega.calificado { background: #dceefb; color: #1a5a8a; }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -66,6 +85,7 @@
 </div>
 
 <div class="curso-grid">
+    <div class="columna-izquierda">
     <div class="tarjeta">
         <h2>Materiales</h2>
         {% for m in materiales %}
@@ -83,6 +103,7 @@
         {% if es_titular %}
         <form method="post" class="form-material">
             {% csrf_token %}
+            <input type="hidden" name="accion" value="material">
             <label for="{{ form.titulo.id_for_label }}">Título</label>
             {{ form.titulo }}
             {% for error in form.titulo.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
@@ -105,6 +126,52 @@
             Estás viendo este curso en modo lectura — solo el docente titular puede publicar aquí.
         </p>
         {% endif %}
+    </div>
+
+    <div class="tarjeta">
+        <h2>Tareas</h2>
+        {% for t in tareas %}
+        <a class="tarea" href="{% url 'asistencia:aula_virtual_tarea' t.pk %}">
+            <h3>{{ t.titulo }}</h3>
+            <div class="limite{% if t.vencida %} vencida{% endif %}">
+                Fecha límite: {{ t.fecha_limite|date:"d/m/Y H:i" }} — Puntaje máximo: {{ t.puntaje_maximo }}
+            </div>
+            {% if not es_titular %}
+                {% if t.mi_entrega.calificada %}
+                <span class="estado-entrega calificado">Calificado: {{ t.mi_entrega.calificacion }} / {{ t.puntaje_maximo }}</span>
+                {% elif t.mi_entrega %}
+                <span class="estado-entrega entregado">Entregado, pendiente de calificar</span>
+                {% else %}
+                <span class="estado-entrega pendiente">Sin entregar</span>
+                {% endif %}
+            {% endif %}
+        </a>
+        {% empty %}
+        <p class="av-vacio">Todavía no hay tareas asignadas en este curso.</p>
+        {% endfor %}
+
+        {% if es_titular %}
+        <form method="post" class="form-material" style="margin-top:1rem;">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="tarea">
+            <label for="{{ tarea_form.titulo.id_for_label }}">Título de la tarea</label>
+            {{ tarea_form.titulo }}
+            {% for error in tarea_form.titulo.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
+
+            <label for="{{ tarea_form.descripcion.id_for_label }}">Descripción / instrucciones</label>
+            {{ tarea_form.descripcion }}
+
+            <label for="{{ tarea_form.fecha_limite.id_for_label }}">Fecha y hora límite</label>
+            {{ tarea_form.fecha_limite }}
+            {% for error in tarea_form.fecha_limite.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
+
+            <label for="{{ tarea_form.puntaje_maximo.id_for_label }}">Puntaje máximo</label>
+            {{ tarea_form.puntaje_maximo }}
+
+            <button type="submit" class="btn-guardar">Asignar tarea</button>
+        </form>
+        {% endif %}
+    </div>
     </div>
 
     <div class="tarjeta">

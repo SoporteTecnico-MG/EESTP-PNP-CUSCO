@@ -1,0 +1,150 @@
+{% extends "asistencia/base_aula_virtual.html" %}
+{% block titulo %}{{ tarea.titulo }} — Aula Virtual{% endblock %}
+{% block extra_head %}
+<style>
+    .tarea-cabecera {
+        background: linear-gradient(135deg, var(--verde-oscuro), var(--verde));
+        color: #fdfaf0; border-radius: .6rem; padding: 1.4rem 1.6rem; margin-bottom: 1.6rem;
+    }
+    .tarea-cabecera h1 { margin: 0 0 .3rem; font-size: 1.2rem; }
+    .tarea-cabecera p { margin: 0; opacity: .85; font-size: .85rem; }
+    .tarea-descripcion { white-space: pre-line; margin-top: .8rem; font-size: .88rem; opacity: .95; }
+
+    .tarjeta { background: #fff; border: 1px solid #e3ddc9; border-radius: .6rem; padding: 1.4rem; margin-bottom: 1.4rem; }
+    .tarjeta h2 {
+        margin: 0 0 1rem; color: var(--verde-oscuro); font-size: 1.02rem;
+        border-bottom: 2px solid var(--dorado); padding-bottom: .35rem; display: inline-block;
+    }
+
+    .form-entrega label { display: block; font-size: .78rem; font-weight: 600; color: #6b7a72; margin: .8rem 0 .3rem; }
+    .form-entrega label:first-child { margin-top: 0; }
+    .form-entrega input, .form-entrega textarea {
+        width: 100%; padding: .55rem .6rem; border: 1px solid #d7d2bf; border-radius: .35rem; font-size: .88rem; font-family: inherit;
+    }
+    .form-entrega textarea { resize: vertical; min-height: 3.5rem; }
+    .error-campo { color: #a83232; font-size: .78rem; margin-top: .25rem; }
+    .btn-guardar {
+        background: var(--verde-oscuro); color: #fff; font-weight: 700; border: none;
+        border-radius: .4rem; padding: .6rem 1.2rem; font-size: .88rem; cursor: pointer; margin-top: 1rem;
+    }
+    .btn-guardar:hover { background: var(--verde); }
+
+    .nota-propia {
+        background: #e4f4e8; border: 1px solid #8fc9a0; border-radius: .5rem; padding: 1rem 1.2rem; margin-bottom: 1rem;
+    }
+    .nota-propia .valor { font-size: 1.4rem; font-weight: 800; color: #1c5c33; }
+    .nota-propia .comentario { font-size: .85rem; color: #3c4a44; margin-top: .4rem; white-space: pre-line; }
+
+    table.entregas { width: 100%; border-collapse: collapse; font-size: .84rem; }
+    table.entregas th, table.entregas td { padding: .55rem .6rem; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
+    table.entregas th { color: #6b7a72; font-size: .7rem; text-transform: uppercase; }
+    table.entregas a.enlace { color: var(--verde); word-break: break-all; }
+    .fila-calificar { background: var(--crema); }
+    .fila-calificar form { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; }
+    .fila-calificar input[type="number"] { width: 5rem; padding: .4rem; border: 1px solid #d7d2bf; border-radius: .3rem; }
+    .fila-calificar textarea { width: 100%; min-width: 180px; padding: .4rem; border: 1px solid #d7d2bf; border-radius: .3rem; font-family: inherit; font-size: .82rem; }
+    .fila-calificar button {
+        background: var(--verde-oscuro); color: #fff; border: none; border-radius: .35rem;
+        padding: .4rem .8rem; font-size: .8rem; cursor: pointer;
+    }
+    .pill-sin-entregar { display: inline-block; background: #fbf0dc; color: #8a6d1a; font-size: .74rem; font-weight: 700; padding: .15rem .5rem; border-radius: 1rem; }
+    .av-vacio { color: #9aa5a0; font-size: .85rem; font-style: italic; }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="migas">
+    <a href="{% url 'asistencia:aula_virtual' %}">Mis cursos</a> &rsaquo;
+    <a href="{% url 'asistencia:aula_virtual_curso' asignacion.pk %}">{{ asignacion.oferta_curso.curso.nombre }}</a> &rsaquo;
+    {{ tarea.titulo }}
+</div>
+
+<div class="tarea-cabecera">
+    <h1>{{ tarea.titulo }}</h1>
+    <p>Fecha límite: {{ tarea.fecha_limite|date:"d/m/Y H:i" }} — Puntaje máximo: {{ tarea.puntaje_maximo }}</p>
+    {% if tarea.descripcion %}<div class="tarea-descripcion">{{ tarea.descripcion }}</div>{% endif %}
+</div>
+
+{% if es_titular %}
+<div class="tarjeta">
+    <h2>Entregas ({{ entregas|length }})</h2>
+    {% if entregas %}
+    <table class="entregas">
+        <thead>
+            <tr><th>Estudiante</th><th>Entrega</th><th>Fecha</th><th>Calificación</th></tr>
+        </thead>
+        <tbody>
+            {% for e in entregas %}
+            <tr>
+                <td>{{ e.estudiante.apellidos_nombres }}</td>
+                <td>
+                    <a class="enlace" href="{{ e.enlace }}" target="_blank" rel="noopener">{{ e.enlace }}</a>
+                    {% if e.comentario %}<div style="color:#6b7a72; margin-top:.3rem;">{{ e.comentario }}</div>{% endif %}
+                    {% if e.entregada_tarde %}<div class="pill-sin-entregar">Entregado tarde</div>{% endif %}
+                </td>
+                <td>{{ e.fecha_entrega|date:"d/m/Y H:i" }}</td>
+                <td>
+                    {% if e.calificada %}
+                        <strong>{{ e.calificacion }} / {{ tarea.puntaje_maximo }}</strong>
+                        {% if e.comentario_docente %}<div style="color:#6b7a72; font-size:.8rem;">{{ e.comentario_docente }}</div>{% endif %}
+                    {% else %}
+                    <form method="post" class="fila-calificar">
+                        {% csrf_token %}
+                        <input type="hidden" name="accion" value="calificar">
+                        <input type="hidden" name="entrega_id" value="{{ e.pk }}">
+                        <input type="number" step="0.01" name="calificacion" min="0" max="{{ tarea.puntaje_maximo }}" placeholder="0-{{ tarea.puntaje_maximo }}" required>
+                        <textarea name="comentario_docente" rows="1" placeholder="Comentario (opcional)"></textarea>
+                        <button type="submit">Calificar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="av-vacio">Todavía no hay ninguna entrega.</p>
+    {% endif %}
+</div>
+
+<div class="tarjeta">
+    <h2>Sin entregar ({{ sin_entregar|length }})</h2>
+    {% if sin_entregar %}
+    <ul>
+        {% for est in sin_entregar %}<li>{{ est.apellidos_nombres }}</li>{% endfor %}
+    </ul>
+    {% else %}
+    <p class="av-vacio">Todos los estudiantes activos de esta Aula ya entregaron.</p>
+    {% endif %}
+</div>
+
+{% else %}
+
+{% if mi_entrega.calificada %}
+<div class="nota-propia">
+    <div class="valor">{{ mi_entrega.calificacion }} / {{ tarea.puntaje_maximo }}</div>
+    {% if mi_entrega.comentario_docente %}<div class="comentario">{{ mi_entrega.comentario_docente }}</div>{% endif %}
+</div>
+{% endif %}
+
+<div class="tarjeta">
+    <h2>{% if mi_entrega %}Mi entrega{% else %}Entregar tarea{% endif %}</h2>
+    {% if mi_entrega and not entrega_form %}
+    <p>Enviaste: <a class="enlace" style="color:var(--verde);" href="{{ mi_entrega.enlace }}" target="_blank" rel="noopener">{{ mi_entrega.enlace }}</a></p>
+    {% if mi_entrega.comentario %}<p style="color:#6b7a72;">{{ mi_entrega.comentario }}</p>{% endif %}
+    <p class="av-vacio">Ya fue calificada — no se puede reemplazar.</p>
+    {% elif entrega_form %}
+    <form method="post" class="form-entrega">
+        {% csrf_token %}
+        <label for="{{ entrega_form.enlace.id_for_label }}">Enlace de tu entrega (Drive, etc.)</label>
+        {{ entrega_form.enlace }}
+        {% for error in entrega_form.enlace.errors %}<div class="error-campo">{{ error }}</div>{% endfor %}
+
+        <label for="{{ entrega_form.comentario.id_for_label }}">Comentario (opcional)</label>
+        {{ entrega_form.comentario }}
+
+        <button type="submit" class="btn-guardar">{% if mi_entrega %}Actualizar entrega{% else %}Entregar{% endif %}</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

@@ -19,6 +19,7 @@ from .models import (
     BloqueHorario,
     Curso,
     Docente,
+    EntregaTarea,
     Especialidad,
     Estudiante,
     Feriado,
@@ -30,6 +31,7 @@ from .models import (
     Persona,
     Postulante,
     Promocion,
+    Tarea,
     registrar_actividad,
 )
 
@@ -193,13 +195,23 @@ class MaterialClaseForm(forms.ModelForm):
         return cleaned
 
 
+class TareaForm(forms.ModelForm):
+    class Meta:
+        model = Tarea
+        fields = ["titulo", "descripcion", "fecha_limite", "puntaje_maximo"]
+        widgets = {
+            "descripcion": forms.Textarea(attrs={"rows": 3}),
+            "fecha_limite": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+        }
+
+
 @login_required
 def aula_virtual_curso(request, asignacion_id):
     """Detalle de un curso del Docente dentro del Aula Virtual: su horario
-    semanal y los materiales que publicó para esa Aula (sección). Solo el
-    Docente asignado puede publicar — el staff puede entrar a supervisar
-    (por ejemplo, en la vista previa de administrador) pero en modo
-    lectura, nunca publica en nombre del docente."""
+    semanal, los materiales que publicó y las tareas del curso, para esa
+    Aula (sección). Solo el Docente asignado puede publicar/asignar — el
+    staff puede entrar a supervisar (por ejemplo, en la vista previa de
+    administrador) pero en modo lectura, nunca en nombre del docente."""
     asignacion = get_object_or_404(
         Asignacion.objects.select_related(
             "aula", "aula__promocion", "oferta_curso__curso", "oferta_curso__periodo_academico", "docente"
@@ -218,21 +230,38 @@ def aula_virtual_curso(request, asignacion_id):
         return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
 
     form = MaterialClaseForm()
+    tarea_form = TareaForm()
     if request.method == "POST":
         if not es_titular:
             return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
-        form = MaterialClaseForm(request.POST)
-        if form.is_valid():
-            material = form.save(commit=False)
-            material.asignacion = asignacion
-            material.save()
-            registrar_actividad(request, f"Publicó material \"{material.titulo}\" en {asignacion}")
-            return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
+        if request.POST.get("accion") == "tarea":
+            tarea_form = TareaForm(request.POST)
+            if tarea_form.is_valid():
+                tarea = tarea_form.save(commit=False)
+                tarea.asignacion = asignacion
+                tarea.save()
+                registrar_actividad(request, "Asignó tarea", detalle=f"\"{tarea.titulo}\" en {asignacion}")
+                return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
+        else:
+            form = MaterialClaseForm(request.POST)
+            if form.is_valid():
+                material = form.save(commit=False)
+                material.asignacion = asignacion
+                material.save()
+                registrar_actividad(request, "Publicó material", detalle=f"\"{material.titulo}\" en {asignacion}")
+                return redirect("asistencia:aula_virtual_curso", asignacion_id=asignacion.pk)
 
     bloques = asignacion.oferta_curso.bloques.select_related(
         "hora_pedagogica_inicio", "hora_pedagogica_fin"
     ).order_by("dia_semana", "hora_pedagogica_inicio__numero_bloque")
     materiales = asignacion.materiales.all()
+    tareas = asignacion.tareas.all()
+    if es_estudiante_del_aula:
+        mis_entregas = {
+            e.tarea_id: e for e in EntregaTarea.objects.filter(tarea__in=tareas, estudiante=estudiante)
+        }
+        for t in tareas:
+            t.mi_entrega = mis_entregas.get(t.pk)
 
     return render(
         request,
@@ -241,8 +270,112 @@ def aula_virtual_curso(request, asignacion_id):
             "asignacion": asignacion,
             "bloques": bloques,
             "materiales": materiales,
+            "tareas": tareas,
             "form": form,
+            "tarea_form": tarea_form,
             "es_titular": es_titular,
+        },
+    )
+
+
+class EntregaTareaForm(forms.ModelForm):
+    class Meta:
+        model = EntregaTarea
+        fields = ["enlace", "comentario"]
+        widgets = {"comentario": forms.Textarea(attrs={"rows": 2})}
+
+
+class CalificarEntregaForm(forms.ModelForm):
+    class Meta:
+        model = EntregaTarea
+        fields = ["calificacion", "comentario_docente"]
+        widgets = {"comentario_docente": forms.Textarea(attrs={"rows": 2})}
+
+    def clean_calificacion(self):
+        calificacion = self.cleaned_data["calificacion"]
+        maximo = self.instance.tarea.puntaje_maximo
+        if calificacion is not None and (calificacion < 0 or calificacion > maximo):
+            raise forms.ValidationError(f"Tiene que estar entre 0 y {maximo}.")
+        return calificacion
+
+
+@login_required
+def aula_virtual_tarea(request, tarea_id):
+    """Detalle de una Tarea: el Docente titular ve y califica las entregas
+    de su Aula; el Estudiante de esa Aula entrega (o reemplaza su entrega,
+    mientras no esté calificada) y ve su propia nota cuando la tenga."""
+    tarea = get_object_or_404(
+        Tarea.objects.select_related(
+            "asignacion__aula", "asignacion__oferta_curso__curso", "asignacion__docente"
+        ),
+        pk=tarea_id,
+    )
+    asignacion = tarea.asignacion
+    docente = getattr(request.user, "docente", None)
+    estudiante = getattr(request.user, "estudiante", None)
+    es_titular = docente is not None and docente.pk == asignacion.docente_id
+    es_estudiante_del_aula = estudiante is not None and estudiante.aula_id == asignacion.aula_id
+    if not es_titular and not es_estudiante_del_aula and not request.user.is_staff:
+        return redirect("asistencia:aula_virtual")
+
+    if es_titular:
+        entregas = list(
+            EntregaTarea.objects.filter(tarea=tarea).select_related("estudiante").order_by("estudiante__apellidos_nombres")
+        )
+        entregados_ids = {e.estudiante_id for e in entregas}
+        sin_entregar = tarea.asignacion.aula.estudiantes.filter(estado="ACTIVO").exclude(pk__in=entregados_ids)
+
+        if request.method == "POST" and request.POST.get("accion") == "calificar":
+            entrega = get_object_or_404(EntregaTarea, pk=request.POST.get("entrega_id"), tarea=tarea)
+            calif_form = CalificarEntregaForm(request.POST, instance=entrega)
+            if calif_form.is_valid():
+                calificada = calif_form.save(commit=False)
+                calificada.fecha_calificacion = timezone.now()
+                calificada.save()
+                registrar_actividad(request, "Calificó entrega", detalle=f"{entrega.estudiante} — \"{tarea.titulo}\"")
+                return redirect("asistencia:aula_virtual_tarea", tarea_id=tarea.pk)
+
+        return render(
+            request,
+            "asistencia/aula_virtual_tarea.html",
+            {
+                "tarea": tarea,
+                "asignacion": asignacion,
+                "es_titular": True,
+                "entregas": entregas,
+                "sin_entregar": sin_entregar,
+                "calif_form": CalificarEntregaForm(),
+            },
+        )
+
+    # --- Lado del Estudiante ---
+    if estudiante and estudiante.password_temporal:
+        return redirect(f"{reverse('asistencia:mi_cuenta')}?debe_cambiar_clave=1")
+
+    mi_entrega = EntregaTarea.objects.filter(tarea=tarea, estudiante=estudiante).first() if estudiante else None
+    entrega_form = None
+    if es_estudiante_del_aula and not (mi_entrega and mi_entrega.calificada):
+        if request.method == "POST":
+            entrega_form = EntregaTareaForm(request.POST, instance=mi_entrega)
+            if entrega_form.is_valid():
+                entrega = entrega_form.save(commit=False)
+                entrega.tarea = tarea
+                entrega.estudiante = estudiante
+                entrega.save()
+                registrar_actividad(request, "Entregó tarea", detalle=f"\"{tarea.titulo}\"")
+                return redirect("asistencia:aula_virtual_tarea", tarea_id=tarea.pk)
+        else:
+            entrega_form = EntregaTareaForm(instance=mi_entrega)
+
+    return render(
+        request,
+        "asistencia/aula_virtual_tarea.html",
+        {
+            "tarea": tarea,
+            "asignacion": asignacion,
+            "es_titular": False,
+            "mi_entrega": mi_entrega,
+            "entrega_form": entrega_form,
         },
     )
 
