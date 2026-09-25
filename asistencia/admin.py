@@ -368,11 +368,36 @@ class AsignacionInline(admin.StackedInline):
 
 @admin.register(models.Docente, site=control_docentes_site)
 class DocenteAdmin(admin.ModelAdmin):
-    list_display = ("dni", "apellidos_nombres", "grado", "celular", "id_biometrico", "estado")
+    list_display = ("dni", "apellidos_nombres", "grado", "celular", "id_biometrico", "estado", "col_acceso_aula_virtual")
     list_filter = ("estado", "grado")
     search_fields = ("dni", "apellidos_nombres", "id_biometrico")
     ordering = ("apellidos_nombres",)
     inlines = [AsignacionInline]
+    actions = ["crear_acceso_aula_virtual_action"]
+
+    @admin.display(description="Aula Virtual")
+    def col_acceso_aula_virtual(self, obj):
+        return obj.usuario.username if obj.usuario_id else "—"
+
+    @admin.action(description="Crear acceso al Aula Virtual (usuario DNI@pnp.edu)")
+    def crear_acceso_aula_virtual_action(self, request, queryset):
+        creados = ya_tenian = fallidos = 0
+        for docente in queryset:
+            if docente.usuario_id:
+                ya_tenian += 1
+                continue
+            try:
+                _, creado = docente.crear_acceso_aula_virtual()
+                if creado:
+                    creados += 1
+            except ValueError as exc:
+                fallidos += 1
+                self.message_user(request, str(exc), level="warning")
+        self.message_user(
+            request,
+            f"Accesos creados: {creados} (usuario: DNI@pnp.edu, contraseña por defecto: su DNI). "
+            f"Ya tenían acceso: {ya_tenian}. Sin procesar (sin DNI): {fallidos}.",
+        )
 
 
 # El autocomplete_fields="docente" de PostulanteAdmin (sitio Proceso Docente)

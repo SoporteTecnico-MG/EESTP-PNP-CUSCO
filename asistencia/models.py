@@ -42,6 +42,12 @@ class Docente(models.Model):
     )
     estado = models.CharField(max_length=10, choices=Estado.choices, default=Estado.ACTIVO)
     fecha_ingreso = models.DateField(null=True, blank=True)
+    usuario = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="docente",
+        help_text="Cuenta para entrar al Aula Virtual — se crea con la acción "
+        '"Crear acceso al Aula Virtual" del listado de Docentes.',
+    )
 
     class Meta:
         verbose_name = "Docente"
@@ -50,6 +56,38 @@ class Docente(models.Model):
 
     def __str__(self):
         return f"{self.apellidos_nombres} ({self.dni or 'sin DNI, ID ' + self.id_biometrico})"
+
+    def crear_acceso_aula_virtual(self):
+        """Crea (si no existe ya) el usuario para entrar al Aula Virtual:
+        usuario "<DNI>@pnp.edu", contraseña por defecto el propio DNI (el
+        docente la cambia desde "Mi cuenta" en su primer ingreso). Requiere
+        que el Docente tenga DNI. Devuelve (user, creado: bool)."""
+        from django.contrib.auth import get_user_model
+        from django.contrib.auth.models import Group
+
+        if self.usuario_id:
+            return self.usuario, False
+        if not self.dni:
+            raise ValueError(f"{self.apellidos_nombres} no tiene DNI registrado — no se puede crear su acceso.")
+
+        User = get_user_model()
+        username = f"{self.dni}@pnp.edu"
+        usuario = User.objects.filter(username=username).first()
+        creado = False
+        if usuario is None:
+            nombres = self.apellidos_nombres.split()
+            usuario = User.objects.create_user(
+                username=username,
+                password=self.dni,
+                first_name=nombres[-1] if nombres else "",
+                last_name=" ".join(nombres[:-1]) if len(nombres) > 1 else "",
+            )
+            creado = True
+        grupo_docentes, _ = Group.objects.get_or_create(name="Docentes")
+        usuario.groups.add(grupo_docentes)
+        self.usuario = usuario
+        self.save(update_fields=["usuario"])
+        return usuario, creado
 
 
 class Promocion(models.Model):
