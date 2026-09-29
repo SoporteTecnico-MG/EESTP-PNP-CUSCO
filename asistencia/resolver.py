@@ -75,6 +75,42 @@ def _horas_pedagogicas_totales_del_bloque(bloques_asignacion):
     return total
 
 
+def recalcular_descuento(ar):
+    """Recalcula horas_pedagogicas_descontadas (y minutos_tardanza si hay
+    entrada) para un registro YA existente, según su estado y marcaciones
+    actuales — para usar después de una corrección manual, que si no deja
+    el descuento congelado en el valor de antes de corregir (ej. una Falta
+    con descuento total que se corrige a Puntual seguía mostrando el
+    descuento viejo, porque cerrar_dia() nunca vuelve a tocar un registro
+    con corregido_manualmente=True)."""
+    bloques_asignacion = list(
+        BloqueHorario.objects.filter(
+            oferta_curso_id=ar.asignacion.oferta_curso_id, dia_semana=ar.fecha.isoweekday()
+        ).select_related("hora_pedagogica_inicio", "hora_pedagogica_fin")
+    )
+    if not bloques_asignacion:
+        ar.horas_pedagogicas_descontadas = 0
+        return
+
+    if ar.estado == AsistenciaResuelta.Estado.FALTA:
+        ar.horas_pedagogicas_descontadas = _horas_pedagogicas_totales_del_bloque(bloques_asignacion)
+        return
+
+    if ar.estado == AsistenciaResuelta.Estado.TARDANZA and ar.marcacion_entrada_id:
+        inicio_dt = min(_dt_aware(ar.fecha, b.hora_pedagogica_inicio.hora_inicio) for b in bloques_asignacion)
+        minutos_tarde = max(0, int((ar.marcacion_entrada.timestamp - inicio_dt).total_seconds() // 60))
+        ar.minutos_tardanza = minutos_tarde
+        ar.horas_pedagogicas_descontadas = (
+            _horas_pedagogicas_transcurridas(ar.fecha, bloques_asignacion, ar.marcacion_entrada.timestamp)
+            if minutos_tarde >= DESCUENTO_TARDANZA_MINUTOS
+            else 0
+        )
+        return
+
+    # Puntual, Solo entrada, Solo salida, Recuperación, etc. — sin descuento.
+    ar.horas_pedagogicas_descontadas = 0
+
+
 def _bloques_del_dia(docente, fecha):
     """Pares (bloque, asignación) vigentes hoy para este docente, cruzando sus
     Asignaciones con los bloques de horario del curso correspondiente."""
@@ -428,8 +464,12 @@ def cerrar_dia(fecha):
             ar.horas_efectivas = round(max(0, horas_efectivas), 2)
 
             # Descuento automático: 15+ min de tardanza -> se pierden las horas
-            # pedagógicas que ya habían terminado por completo al momento de entrar.
-            if minutos_tarde >= DESCUENTO_TARDANZA_MINUTOS:
+            # pedagógicas que ya habían terminado por completo al momento de
+            # entrar. Solo aplica si de verdad quedó como Tardanza — si la
+            # tolerancia (20 min) es mayor que este umbral (15 min), un
+            # ingreso "Puntual" (dentro de la tolerancia) no debe perder
+            # horas, aunque supere el umbral de descuento por sí solo.
+            if ar.estado == AsistenciaResuelta.Estado.TARDANZA and minutos_tarde >= DESCUENTO_TARDANZA_MINUTOS:
                 ar.horas_pedagogicas_descontadas = _horas_pedagogicas_transcurridas(
                     fecha, bloques_asignacion, ar.marcacion_entrada.timestamp
                 )

@@ -12,6 +12,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 
+from . import resolver
 from .models import (
     Asignacion,
     AsistenciaResuelta,
@@ -1197,6 +1198,10 @@ def corregir_asistencia(request, pk):
         ar.corregido_manualmente = True
 
     ar.requiere_revision = request.POST.get("requiere_revision") == "on"
+    # Sin esto, el descuento de horas se queda congelado en lo que tenía
+    # antes de corregir (ej. una Falta con descuento total corregida a
+    # Puntual seguía mostrando "3 HP descontadas" de antes de la corrección).
+    resolver.recalcular_descuento(ar)
     ar.save()
 
     registrar_actividad(
@@ -1226,9 +1231,15 @@ def corregir_asistencia_lote(request):
         elif accion == "cambiar_estado":
             estado_lote = request.POST.get("estado_lote")
             if estado_lote in AsistenciaResuelta.Estado.values:
-                registros.update(
-                    estado=estado_lote, requiere_revision=False, corregido_manualmente=True
-                )
+                # Fila por fila (no .update() masivo): cada una necesita
+                # recalcular su propio descuento de horas según su Asignación
+                # y fecha — si no, se queda con el valor de antes de corregir.
+                for ar in registros.select_related("asignacion", "marcacion_entrada"):
+                    ar.estado = estado_lote
+                    ar.requiere_revision = False
+                    ar.corregido_manualmente = True
+                    resolver.recalcular_descuento(ar)
+                    ar.save()
                 registrar_actividad(
                     request,
                     "Corrección en lote",
