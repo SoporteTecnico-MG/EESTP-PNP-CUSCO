@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% block title %}Reporte Diario de Marcaciones{% endblock %}
+{% block title %}Reporte Diario de Marcaciones — {{ fecha|date:"d/m/Y" }}{% endblock %}
 {% block breadcrumbs %}
 <div class="breadcrumbs">
     <a href="{% url 'controldocentes:index' %}">Inicio</a>
