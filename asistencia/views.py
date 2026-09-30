@@ -1626,6 +1626,11 @@ def reporte_diario_marcaciones(request):
                     "id_biometrico": id_biometrico,
                     "dni": dni,
                     "nombre": nombre,
+                    # Distingue "no hay Docente con este ID biométrico" (caso
+                    # real a resolver) de "el Docente existe pero no tiene
+                    # DNI cargado" (dato incompleto, no un error) — antes se
+                    # resaltaban igual y confundía a quien lo revisaba.
+                    "sin_registrar": docente is None,
                     "hora_inicio": inicio,
                     "hora_fin": fin,
                     "tiempo_largo": duracion,

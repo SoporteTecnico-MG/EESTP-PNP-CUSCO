@@ -57,7 +57,7 @@
     </thead>
     <tbody>
         {% for fila in filas %}
-        <tr {% if not fila.dni %}class="sin-registrar"{% endif %}>
+        <tr {% if fila.sin_registrar %}class="sin-registrar"{% endif %}>
             <td class="centro">{{ fila.id_biometrico }}</td>
             <td class="centro">{{ fila.dni }}</td>
             <td>{{ fila.nombre }}</td>
@@ -73,6 +73,6 @@
     </tbody>
 </table>
 
-<p style="text-align:right;font-size:.85rem;margin-top:1rem">Cusco, {% now "d \\d\\e F \\d\\e Y" %}</p>
+<p style="text-align:right;font-size:.85rem;margin-top:1rem">Cusco, {% now "d \d\e F \d\e Y" %}</p>
 </div>
 {% endblock %}
