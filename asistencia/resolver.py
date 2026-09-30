@@ -427,12 +427,24 @@ def cerrar_dia(fecha):
             _dt_aware(fecha, b.hora_pedagogica_fin.hora_fin) for b in bloques_asignacion
         )
 
-        ar, _ = AsistenciaResuelta.objects.get_or_create(
-            docente=docente,
-            asignacion=asignacion,
-            fecha=fecha,
-            defaults={"estado": AsistenciaResuelta.Estado.FALTA},
+        # Se busca por (asignacion, fecha) — NO por docente — para que un
+        # cambio de docente en la Asignación (una sustitución, por ejemplo)
+        # actualice el mismo registro en vez de crear uno aparte y dejar el
+        # anterior "colgado" con el docente viejo (eso pasó varias veces:
+        # Condori Huaylla/Zavala, Martinez Alarcon/Martinez Alvarez).
+        existentes = list(
+            AsistenciaResuelta.objects.filter(asignacion=asignacion, fecha=fecha).order_by("-id")
         )
+        if existentes:
+            ar = existentes[0]
+            if ar.docente_id != docente.id:
+                ar.docente = docente
+            if len(existentes) > 1:
+                AsistenciaResuelta.objects.filter(pk__in=[e.pk for e in existentes[1:]]).delete()
+        else:
+            ar = AsistenciaResuelta.objects.create(
+                docente=docente, asignacion=asignacion, fecha=fecha, estado=AsistenciaResuelta.Estado.FALTA
+            )
 
         if ar.estado == AsistenciaResuelta.Estado.AMBIGUO:
             resumen["ambiguo"] += 1

@@ -538,7 +538,13 @@ class AsistenciaResuelta(models.Model):
         verbose_name = "Asistencia Resuelta"
         verbose_name_plural = "Asistencias Resueltas"
         ordering = ["-fecha", "docente"]
-        unique_together = ("docente", "asignacion", "fecha")
+        # Antes era ("docente", "asignacion", "fecha") — pero eso permitía
+        # que un cambio de docente en la Asignación generara un SEGUNDO
+        # registro para el mismo día en vez de reemplazar al primero,
+        # dejando el viejo "colgado" con el docente anterior (pasó varias
+        # veces). Un mismo día de una misma Asignación solo debe tener un
+        # registro, sea quien sea el docente actual.
+        unique_together = ("asignacion", "fecha")
 
     def __str__(self):
         return f"{self.docente} — {self.fecha} — {self.get_estado_display()}"
