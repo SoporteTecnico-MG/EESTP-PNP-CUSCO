@@ -10,7 +10,7 @@
 <div class="pagina-centrada">
 <div class="no-imprimir">
 <h1>Reporte Diario de Marcaciones</h1>
-<p>Primera y última marca del biométrico por persona, un día a la vez — para archivar como el reporte nativo del equipo.</p>
+<p>Calco del reporte que exportaba el biométrico (AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal, TiempoLargo, TiempoValid, Fecha) — para archivar igual que antes.</p>
 
 <form method="get" class="filtros-horario">
     <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
@@ -29,41 +29,43 @@
 
 <style>
     .marcaciones-tabla { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
-    .marcaciones-tabla th, .marcaciones-tabla td { border: 1px solid #333; padding: .4rem .5rem; font-size: .8rem; text-align: left; }
+    .marcaciones-tabla th, .marcaciones-tabla td { border: 1px solid #333; padding: .3rem .45rem; font-size: .78rem; text-align: left; }
     .marcaciones-tabla th { background: #eee; text-align: center; }
     .marcaciones-tabla td.centro { text-align: center; font-variant-numeric: tabular-nums; }
     .marcaciones-tabla tr.sin-registrar td { color: #a83232; }
-    .titulo-oficial { text-align: center; font-weight: 700; font-size: .95rem; margin-bottom: 1.2rem; text-transform: uppercase; }
-</style>
 
-<div class="titulo-oficial">
-    Reporte diario de marcaciones — EESTP PNP Cusco — {{ fecha|date:"d/m/Y" }}
-</div>
+    /* Esta hoja se archiva vertical (como el reporte original del
+       biométrico) — el resto del admin imprime en horizontal por defecto
+       (para las grillas de horario), así que se anula ese ajuste acá. */
+    @media print {
+        @page { size: portrait; margin: 1.2cm; }
+    }
+</style>
 
 <table class="marcaciones-tabla">
     <thead>
         <tr>
-            <th style="width:3rem">N°</th>
-            <th style="width:5rem">ID Biométrico</th>
-            <th style="width:7rem">DNI</th>
+            <th style="width:3rem">AC-No.</th>
+            <th style="width:6rem">Cédula No.</th>
             <th>Nombre</th>
-            <th style="width:6rem">Hora inicio</th>
-            <th style="width:6rem">Hora fin</th>
-            <th style="width:6rem">Duración</th>
-            <th style="width:5rem"># Marcas</th>
+            <th style="width:5rem">TiempoInicio</th>
+            <th style="width:5rem">TiempoFinal</th>
+            <th style="width:5rem">TiempoLargo</th>
+            <th style="width:5rem">TiempoValid</th>
+            <th style="width:5.5rem">Fecha</th>
         </tr>
     </thead>
     <tbody>
         {% for fila in filas %}
-        <tr {% if not fila.dni and fila.nombre|slice:":1" == "(" %}class="sin-registrar"{% endif %}>
-            <td class="centro">{{ fila.numero }}</td>
+        <tr {% if not fila.dni %}class="sin-registrar"{% endif %}>
             <td class="centro">{{ fila.id_biometrico }}</td>
-            <td class="centro">{{ fila.dni|default_if_none:"" }}</td>
+            <td class="centro">{{ fila.dni }}</td>
             <td>{{ fila.nombre }}</td>
             <td class="centro">{{ fila.hora_inicio|time:"H:i" }}</td>
             <td class="centro">{{ fila.hora_fin|time:"H:i" }}</td>
-            <td class="centro">{{ fila.duracion }}</td>
-            <td class="centro">{{ fila.cantidad_marcas }}</td>
+            <td class="centro">{{ fila.tiempo_largo }}</td>
+            <td class="centro">{{ fila.tiempo_valid }}</td>
+            <td class="centro">{{ fila.fecha|date:"d/m/Y" }}</td>
         </tr>
         {% empty %}
         <tr><td colspan="8" class="centro" style="color:#888">No hay marcaciones registradas ese día.</td></tr>

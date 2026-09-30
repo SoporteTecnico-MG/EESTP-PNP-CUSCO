@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from django import forms
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, ProtectedError, Min, Max, Count
+from django.db.models import Q, ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -1584,47 +1584,59 @@ def cuadro_inasistencia(request):
     )
 
 
+def _formato_hhmm(duracion):
+    minutos_totales = int(duracion.total_seconds() // 60)
+    return f"{minutos_totales // 60:02d}:{minutos_totales % 60:02d}"
+
+
 @login_required
 def reporte_diario_marcaciones(request):
     """Reporte diario de marcaciones crudas del biométrico, por persona —
-    para archivar como se hacía antes con el reporte nativo del equipo
-    (iClock880): una fila por persona con su primera y su última marca del
-    día y cuánto tiempo pasó entre ambas. No cruza con horario ni cursos —
-    es un calco del reporte de asistencia general del dispositivo."""
+    calco del reporte nativo del equipo (iClock880) que antes se imprimía y
+    archivaba a mano: AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal,
+    TiempoLargo, TiempoValid, Fecha. Las marcas del día se emparejan de dos
+    en dos en el orden en que ocurrieron (1ra con 2da, 3ra con 4ta, ...),
+    así que una persona que marcó, salió y volvió a marcar aparece en más
+    de una fila — igual que en el reporte original. No cruza con horario
+    ni cursos, es independiente del motor de resolución de asistencia."""
     fecha_str = request.GET.get("fecha")
     if fecha_str:
         fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
     else:
         fecha = timezone.localdate()
 
-    agregados = (
-        MarcacionBiometrica.objects.filter(timestamp__date=fecha)
-        .values("id_biometrico")
-        .annotate(inicio=Min("timestamp"), fin=Max("timestamp"), cantidad_marcas=Count("id"))
-        .order_by("inicio")
-    )
+    marcas_por_persona = {}
+    for m in MarcacionBiometrica.objects.filter(timestamp__date=fecha).order_by("timestamp"):
+        marcas_por_persona.setdefault(m.id_biometrico, []).append(m)
 
     docentes_por_id = {d.id_biometrico: d for d in Docente.objects.all()}
 
     filas = []
-    for numero, ag in enumerate(agregados, start=1):
-        docente = docentes_por_id.get(ag["id_biometrico"])
-        inicio = timezone.localtime(ag["inicio"])
-        fin = timezone.localtime(ag["fin"])
-        duracion = fin - inicio
-        minutos_totales = int(duracion.total_seconds() // 60)
-        filas.append(
-            {
-                "numero": numero,
-                "id_biometrico": ag["id_biometrico"],
-                "dni": (docente.dni if docente else "") or "",
-                "nombre": docente.apellidos_nombres if docente else "(sin registrar en Docentes)",
-                "hora_inicio": inicio,
-                "hora_fin": fin,
-                "duracion": f"{minutos_totales // 60:02d}:{minutos_totales % 60:02d}",
-                "cantidad_marcas": ag["cantidad_marcas"],
-            }
-        )
+    for id_biometrico, marcas in marcas_por_persona.items():
+        docente = docentes_por_id.get(id_biometrico)
+        dni = ((docente.dni if docente else "") or "")
+        nombre = docente.apellidos_nombres if docente else "(sin registrar en Docentes)"
+
+        for i in range(0, len(marcas), 2):
+            inicio = timezone.localtime(marcas[i].timestamp)
+            fin = timezone.localtime(marcas[i + 1].timestamp) if i + 1 < len(marcas) else inicio
+            duracion = _formato_hhmm(fin - inicio)
+            filas.append(
+                {
+                    "id_biometrico": id_biometrico,
+                    "dni": dni,
+                    "nombre": nombre,
+                    "hora_inicio": inicio,
+                    "hora_fin": fin,
+                    "tiempo_largo": duracion,
+                    "tiempo_valid": duracion,
+                    "fecha": fecha,
+                }
+            )
+
+    filas.sort(key=lambda f: f["hora_inicio"])
+    for numero, fila in enumerate(filas, start=1):
+        fila["numero"] = numero
 
     return render(
         request,
