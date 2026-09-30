@@ -1644,6 +1644,40 @@ def reporte_diario_marcaciones(request):
             )
 
     filas.sort(key=lambda f: f["hora_inicio"])
+
+    # Al final, los Docentes que SÍ tenían clase programada ese día (según
+    # su horario) y no tienen ni una sola marca — no se incluye a cualquier
+    # activo sin marca, porque a la mayoría simplemente no le tocaba ese
+    # día y no sería una falta real.
+    dia_semana = fecha.isoweekday()
+    docentes_con_clase_ids = (
+        Asignacion.objects.filter(
+            oferta_curso__bloques__dia_semana=dia_semana,
+            oferta_curso__periodo_academico__fecha_inicio__lte=fecha,
+            oferta_curso__periodo_academico__fecha_fin__gte=fecha,
+        )
+        .values_list("docente_id", flat=True)
+        .distinct()
+    )
+    faltos = Docente.objects.filter(pk__in=docentes_con_clase_ids).exclude(
+        id_biometrico__in=marcas_por_persona.keys()
+    ).order_by("apellidos_nombres")
+    for indice, d in enumerate(faltos):
+        filas.append(
+            {
+                "id_biometrico": d.id_biometrico,
+                "dni": d.dni or "",
+                "nombre": d.apellidos_nombres,
+                "sin_registrar": False,
+                "primer_falto": indice == 0,
+                "hora_inicio": None,
+                "hora_fin": None,
+                "tiempo_largo": "FALTO",
+                "tiempo_valid": "FALTO",
+                "fecha": fecha,
+            }
+        )
+
     for numero, fila in enumerate(filas, start=1):
         fila["numero"] = numero
 

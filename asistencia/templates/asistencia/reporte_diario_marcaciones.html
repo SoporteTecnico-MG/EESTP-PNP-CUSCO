@@ -33,6 +33,7 @@
     .marcaciones-tabla th { background: #eee; text-align: center; }
     .marcaciones-tabla td.centro { text-align: center; font-variant-numeric: tabular-nums; }
     .marcaciones-tabla tr.sin-registrar td { color: #a83232; }
+    .marcaciones-tabla tr.fila-falto td { background: #fdecea; font-weight: 600; }
 
     /* Esta hoja se archiva vertical (como el reporte original del
        biométrico) — el resto del admin imprime en horizontal por defecto
@@ -57,12 +58,15 @@
     </thead>
     <tbody>
         {% for fila in filas %}
-        <tr {% if fila.sin_registrar %}class="sin-registrar"{% endif %}>
+        {% if fila.primer_falto %}
+        <tr><td colspan="8" style="background:#f4f4f4;font-weight:700;text-align:center">Tenían clase programada ese día y no marcaron</td></tr>
+        {% endif %}
+        <tr {% if fila.sin_registrar %}class="sin-registrar"{% elif fila.tiempo_largo == "FALTO" %}class="fila-falto"{% endif %}>
             <td class="centro">{{ fila.id_biometrico }}</td>
             <td class="centro">{{ fila.dni }}</td>
             <td>{{ fila.nombre }}</td>
-            <td class="centro">{{ fila.hora_inicio|time:"H:i" }}</td>
-            <td class="centro">{% if fila.hora_fin %}{{ fila.hora_fin|time:"H:i" }}{% else %}<strong>NO REG.</strong>{% endif %}</td>
+            <td class="centro">{% if fila.hora_inicio %}{{ fila.hora_inicio|time:"H:i" }}{% else %}—{% endif %}</td>
+            <td class="centro">{% if fila.hora_fin %}{{ fila.hora_fin|time:"H:i" }}{% elif fila.tiempo_largo == "FALTO" %}—{% else %}<strong>NO REG.</strong>{% endif %}</td>
             <td class="centro">{{ fila.tiempo_largo }}</td>
             <td class="centro">{{ fila.tiempo_valid }}</td>
             <td class="centro">{{ fila.fecha|date:"d/m/Y" }}</td>
