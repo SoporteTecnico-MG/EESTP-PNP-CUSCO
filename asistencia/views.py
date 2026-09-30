@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from django import forms
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q, ProtectedError
+from django.db.models import Q, ProtectedError, Min, Max, Count
 from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -1581,6 +1581,55 @@ def cuadro_inasistencia(request):
             "fecha_hasta": fecha_hasta_str or "",
             "grupos_ordenados": grupos_ordenados,
         },
+    )
+
+
+@login_required
+def reporte_diario_marcaciones(request):
+    """Reporte diario de marcaciones crudas del biométrico, por persona —
+    para archivar como se hacía antes con el reporte nativo del equipo
+    (iClock880): una fila por persona con su primera y su última marca del
+    día y cuánto tiempo pasó entre ambas. No cruza con horario ni cursos —
+    es un calco del reporte de asistencia general del dispositivo."""
+    fecha_str = request.GET.get("fecha")
+    if fecha_str:
+        fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+    else:
+        fecha = timezone.localdate()
+
+    agregados = (
+        MarcacionBiometrica.objects.filter(timestamp__date=fecha)
+        .values("id_biometrico")
+        .annotate(inicio=Min("timestamp"), fin=Max("timestamp"), cantidad_marcas=Count("id"))
+        .order_by("inicio")
+    )
+
+    docentes_por_id = {d.id_biometrico: d for d in Docente.objects.all()}
+
+    filas = []
+    for numero, ag in enumerate(agregados, start=1):
+        docente = docentes_por_id.get(ag["id_biometrico"])
+        inicio = timezone.localtime(ag["inicio"])
+        fin = timezone.localtime(ag["fin"])
+        duracion = fin - inicio
+        minutos_totales = int(duracion.total_seconds() // 60)
+        filas.append(
+            {
+                "numero": numero,
+                "id_biometrico": ag["id_biometrico"],
+                "dni": (docente.dni if docente else "") or "",
+                "nombre": docente.apellidos_nombres if docente else "(sin registrar en Docentes)",
+                "hora_inicio": inicio,
+                "hora_fin": fin,
+                "duracion": f"{minutos_totales // 60:02d}:{minutos_totales % 60:02d}",
+                "cantidad_marcas": ag["cantidad_marcas"],
+            }
+        )
+
+    return render(
+        request,
+        "asistencia/reporte_diario_marcaciones.html",
+        {"fecha": fecha, "filas": filas},
     )
 
 

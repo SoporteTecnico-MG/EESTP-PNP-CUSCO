@@ -271,6 +271,11 @@ def _get_urls():
             name="cuadro_inasistencia",
         ),
         path(
+            "reporte-diario-marcaciones/",
+            control_docentes_site.admin_view(asistencia_views.reporte_diario_marcaciones),
+            name="reporte_diario_marcaciones",
+        ),
+        path(
             "sincronizar-biometrico/",
             control_docentes_site.admin_view(asistencia_views.sincronizar_biometrico_vista),
             name="sincronizar_biometrico",
