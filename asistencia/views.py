@@ -1619,8 +1619,12 @@ def reporte_diario_marcaciones(request):
 
         for i in range(0, len(marcas), 2):
             inicio = timezone.localtime(marcas[i].timestamp)
-            fin = timezone.localtime(marcas[i + 1].timestamp) if i + 1 < len(marcas) else inicio
-            duracion = _formato_hhmm(fin - inicio)
+            # Marca impar (sin su par): no se sabe si le faltó marcar
+            # entrada o salida — se avisa como "NO REG." en vez de repetir
+            # la misma hora con 00:00, que parecía un dato válido.
+            hay_par = i + 1 < len(marcas)
+            fin = timezone.localtime(marcas[i + 1].timestamp) if hay_par else None
+            duracion = _formato_hhmm(fin - inicio) if hay_par else "NO REG."
             filas.append(
                 {
                     "id_biometrico": id_biometrico,
