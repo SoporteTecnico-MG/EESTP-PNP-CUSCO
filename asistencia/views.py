@@ -1629,7 +1629,14 @@ def reporte_diario_marcaciones(request):
     bloques_por_docente = {}
     for a in asignaciones_del_dia:
         periodo = a.oferta_curso.periodo_academico
-        texto = f"{periodo.promocion.nombre} — {periodo.nombre or f'{periodo.numero_periodo}° periodo'}"
+        # El período va adelante y sin la palabra "Período" (el nombre del
+        # período ya suele traerla, ej. "I Periodo" -> solo "I").
+        periodo_corto = (
+            re.sub(r"(?i)\bperiodo\b|\bperíodo\b", "", periodo.nombre).strip()
+            if periodo.nombre
+            else str(periodo.numero_periodo)
+        )
+        texto = f"{periodo_corto} — {periodo.promocion.nombre}"
         for b in a.oferta_curso.bloques.all():
             if b.dia_semana == dia_semana:
                 bloques_por_docente.setdefault(a.docente.id_biometrico, []).append(
