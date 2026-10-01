@@ -1613,23 +1613,39 @@ def _formato_hhmm(duracion):
     return f"{minutos_totales // 60:02d}:{minutos_totales % 60:02d}"
 
 
+def _texto_promocion_periodo(periodo_academico):
+    # El período va adelante y sin la palabra "Período" (el nombre del
+    # período ya suele traerla, ej. "I Periodo" -> solo "I").
+    periodo_corto = (
+        re.sub(r"(?i)\bperiodo\b|\bperíodo\b", "", periodo_academico.nombre).strip()
+        if periodo_academico.nombre
+        else str(periodo_academico.numero_periodo)
+    )
+    return f"{periodo_corto} — {periodo_academico.promocion.nombre}"
+
+
 @login_required
 def reporte_diario_marcaciones(request):
-    """Reporte diario de marcaciones crudas del biométrico, por persona —
-    calco del reporte nativo del equipo (iClock880) que antes se imprimía y
-    archivaba a mano: AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal,
-    Promoción/Período (del curso que le toca ese día, cruzando su horario),
-    TiempoValid, Fecha. Las marcas del día se emparejan de dos
-    en dos en el orden en que ocurrieron (1ra con 2da, 3ra con 4ta, ...),
-    así que una persona que marcó, salió y volvió a marcar aparece en más
-    de una fila — igual que en el reporte original. No cruza con horario
-    ni cursos, es independiente del motor de resolución de asistencia."""
+    """Reporte diario de marcaciones por persona — calco del reporte nativo
+    del equipo (iClock880) que antes se imprimía y archivaba a mano: AC-No.,
+    Cédula, Nombre, TiempoInicio, TiempoFinal, Promoción/Período, TiempoValid,
+    Fecha. Para los Docentes reconocidos, entrada/salida/recuperación se leen
+    de los mismos registros (AsistenciaResuelta) que usan el Calendario y el
+    Reporte de Asistencia — un solo criterio para los tres, no uno por
+    reporte. Las marcas de alguien sin Docente en el catálogo (el motor de
+    resolución las ignora, no tiene a quién asociarlas) se siguen mostrando
+    aparte con su propio emparejamiento simple, para no perder de vista una
+    anomalía real (así se encontró a un ID biométrico sin registrar antes)."""
     fecha_str = request.GET.get("fecha")
     if fecha_str:
         fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
     else:
         fecha = timezone.localdate()
-    dia_semana = fecha.isoweekday()
+
+    # Un solo criterio en todo el sistema: se resuelven las marcas
+    # pendientes con el mismo motor que usa el Calendario y el Reporte de
+    # Asistencia antes de leer nada, para no mostrar datos a medio resolver.
+    resolver.procesar_marcaciones_pendientes()
 
     marcas_por_persona = {}
     for m in MarcacionBiometrica.objects.filter(timestamp__date=fecha).order_by("timestamp"):
@@ -1637,106 +1653,93 @@ def reporte_diario_marcaciones(request):
 
     docentes_por_id = {d.id_biometrico: d for d in Docente.objects.all()}
 
-    # Promoción/Período de cada bloque que le toca a cada docente ESE día de
-    # la semana — para mostrar, junto a cada marca, a qué curso corresponde
-    # (igual que pediste: una sola columna con Promoción y Período juntos).
-    asignaciones_del_dia = (
-        Asignacion.objects.filter(
-            oferta_curso__bloques__dia_semana=dia_semana,
-            oferta_curso__periodo_academico__fecha_inicio__lte=fecha,
-            oferta_curso__periodo_academico__fecha_fin__gte=fecha,
-        )
-        .select_related("docente", "oferta_curso__periodo_academico__promocion")
-        .prefetch_related("oferta_curso__bloques__hora_pedagogica_inicio", "oferta_curso__bloques__hora_pedagogica_fin")
-        .distinct()
-    )
-    bloques_por_docente = {}
-    for a in asignaciones_del_dia:
-        periodo = a.oferta_curso.periodo_academico
-        # El período va adelante y sin la palabra "Período" (el nombre del
-        # período ya suele traerla, ej. "I Periodo" -> solo "I").
-        periodo_corto = (
-            re.sub(r"(?i)\bperiodo\b|\bperíodo\b", "", periodo.nombre).strip()
-            if periodo.nombre
-            else str(periodo.numero_periodo)
-        )
-        texto = f"{periodo_corto} — {periodo.promocion.nombre}"
-        for b in a.oferta_curso.bloques.all():
-            if b.dia_semana == dia_semana:
-                bloques_por_docente.setdefault(a.docente.id_biometrico, []).append(
-                    (b.hora_pedagogica_inicio.hora_inicio, texto)
-                )
-
-    def promocion_periodo_de(id_biometrico, hora_inicio_local):
-        """De todos los cursos que le tocan hoy a esta persona, elige el que
-        empieza más cerca de la hora en que realmente marcó — para que cada
-        sesión del día se asocie al curso correcto, no a cualquiera."""
-        opciones = bloques_por_docente.get(id_biometrico)
-        hora = hora_inicio_local.time()
-        if not opciones:
-            # Nada programado a esa hora para esta persona — si cae en la
-            # ventana de recuperación nocturna (después del horario normal
-            # y hasta las 22:00), se avisa como tal en vez de dejar un
-            # guion sin explicación; es justo lo mismo que hace el motor de
-            # asistencia principal con estas marcas (sin Asignación).
-            if resolver._fin_horario_institucional() <= hora <= resolver.RECUPERACION_HASTA:
-                return "Recuperación nocturna"
-            return "—"
-        return min(
-            opciones,
-            key=lambda o: abs(
-                (datetime.combine(fecha, hora) - datetime.combine(fecha, o[0])).total_seconds()
-            ),
-        )[1]
-
     filas = []
-    for id_biometrico, marcas in marcas_por_persona.items():
-        docente = docentes_por_id.get(id_biometrico)
-        dni = ((docente.dni if docente else "") or "")
-        nombre = docente.apellidos_nombres if docente else "(sin registrar en Docentes)"
+    docentes_resueltos_ids = set()
 
+    # 1) Docentes reconocidos: se leen sus registros ya resueltos.
+    registros = (
+        AsistenciaResuelta.objects.filter(fecha=fecha, docente__id_biometrico__in=marcas_por_persona.keys())
+        .select_related(
+            "docente",
+            "marcacion_entrada",
+            "marcacion_salida",
+            "asignacion__oferta_curso__periodo_academico__promocion",
+        )
+    )
+    for r in registros:
+        docentes_resueltos_ids.add(r.docente.id_biometrico)
+        entrada = timezone.localtime(r.marcacion_entrada.timestamp) if r.marcacion_entrada else None
+        salida = timezone.localtime(r.marcacion_salida.timestamp) if r.marcacion_salida else None
+        if r.asignacion_id:
+            promocion_periodo = _texto_promocion_periodo(r.asignacion.oferta_curso.periodo_academico)
+        elif r.estado == AsistenciaResuelta.Estado.RECUPERACION:
+            promocion_periodo = "Recuperación nocturna"
+        else:
+            promocion_periodo = "—"
+        filas.append(
+            {
+                "id_biometrico": r.docente.id_biometrico,
+                "dni": r.docente.dni or "",
+                "nombre": r.docente.apellidos_nombres,
+                "sin_registrar": False,
+                "hora_inicio": entrada,
+                "hora_fin": salida,
+                "promocion_periodo": promocion_periodo,
+                "tiempo_valid": _formato_hhmm(salida - entrada) if (entrada and salida) else "NO REG.",
+                "fecha": fecha,
+            }
+        )
+
+    # 2) Marcas sin Docente en el catálogo — el motor de resolución no les
+    # genera ningún registro (no tiene a quién asociarlas), así que se
+    # arman aparte con el emparejamiento simple de dos en dos.
+    for id_biometrico, marcas in marcas_por_persona.items():
+        if id_biometrico in docentes_resueltos_ids:
+            continue
+        docente = docentes_por_id.get(id_biometrico)
+        dni = (docente.dni if docente else "") or ""
+        nombre = docente.apellidos_nombres if docente else "(sin registrar en Docentes)"
         for i in range(0, len(marcas), 2):
             inicio = timezone.localtime(marcas[i].timestamp)
-            # Marca impar (sin su par): no se sabe si le faltó marcar
-            # entrada o salida — se avisa como "NO REG." en vez de repetir
-            # la misma hora con 00:00, que parecía un dato válido.
             hay_par = i + 1 < len(marcas)
             fin = timezone.localtime(marcas[i + 1].timestamp) if hay_par else None
-            duracion = _formato_hhmm(fin - inicio) if hay_par else "NO REG."
             filas.append(
                 {
                     "id_biometrico": id_biometrico,
                     "dni": dni,
                     "nombre": nombre,
-                    # Distingue "no hay Docente con este ID biométrico" (caso
-                    # real a resolver) de "el Docente existe pero no tiene
-                    # DNI cargado" (dato incompleto, no un error) — antes se
-                    # resaltaban igual y confundía a quien lo revisaba.
                     "sin_registrar": docente is None,
                     "hora_inicio": inicio,
                     "hora_fin": fin,
-                    "promocion_periodo": promocion_periodo_de(id_biometrico, inicio) if docente else "—",
-                    "tiempo_valid": duracion,
+                    "promocion_periodo": "—",
+                    "tiempo_valid": _formato_hhmm(fin - inicio) if hay_par else "NO REG.",
                     "fecha": fecha,
                 }
             )
 
     filas.sort(key=lambda f: f["hora_inicio"])
 
-    # Al final, los Docentes que SÍ tenían clase programada ese día (según
-    # su horario) y no tienen ni una sola marca — no se incluye a cualquier
-    # activo sin marca, porque a la mayoría simplemente no le tocaba ese
-    # día y no sería una falta real.
-    faltos = Docente.objects.filter(id_biometrico__in=bloques_por_docente.keys()).exclude(
-        id_biometrico__in=marcas_por_persona.keys()
-    ).order_by("apellidos_nombres")
-    for indice, d in enumerate(faltos):
-        textos = {texto for _, texto in bloques_por_docente.get(d.id_biometrico, [])}
+    # 3) Al final, quienes tenían clase programada ese día y quedaron en
+    # Falta — leído directo del mismo estado "Falta" que usan el Calendario
+    # y el Reporte de Asistencia, no recalculado aparte.
+    faltas_por_docente = {}
+    for r in (
+        AsistenciaResuelta.objects.filter(
+            fecha=fecha, estado=AsistenciaResuelta.Estado.FALTA, asignacion__isnull=False
+        ).select_related("docente", "asignacion__oferta_curso__periodo_academico__promocion")
+    ):
+        faltas_por_docente.setdefault(r.docente, set()).add(
+            _texto_promocion_periodo(r.asignacion.oferta_curso.periodo_academico)
+        )
+
+    for indice, (docente, textos) in enumerate(
+        sorted(faltas_por_docente.items(), key=lambda kv: kv[0].apellidos_nombres)
+    ):
         filas.append(
             {
-                "id_biometrico": d.id_biometrico,
-                "dni": d.dni or "",
-                "nombre": d.apellidos_nombres,
+                "id_biometrico": docente.id_biometrico,
+                "dni": docente.dni or "",
+                "nombre": docente.apellidos_nombres,
                 "sin_registrar": False,
                 "primer_falto": indice == 0,
                 "hora_inicio": None,
