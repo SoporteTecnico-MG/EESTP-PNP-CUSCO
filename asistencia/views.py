@@ -1594,7 +1594,8 @@ def reporte_diario_marcaciones(request):
     """Reporte diario de marcaciones crudas del biométrico, por persona —
     calco del reporte nativo del equipo (iClock880) que antes se imprimía y
     archivaba a mano: AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal,
-    TiempoLargo, TiempoValid, Fecha. Las marcas del día se emparejan de dos
+    Promoción/Período (del curso que le toca ese día, cruzando su horario),
+    TiempoValid, Fecha. Las marcas del día se emparejan de dos
     en dos en el orden en que ocurrieron (1ra con 2da, 3ra con 4ta, ...),
     así que una persona que marcó, salió y volvió a marcar aparece en más
     de una fila — igual que en el reporte original. No cruza con horario
@@ -1604,12 +1605,51 @@ def reporte_diario_marcaciones(request):
         fecha = datetime.strptime(fecha_str, "%Y-%m-%d").date()
     else:
         fecha = timezone.localdate()
+    dia_semana = fecha.isoweekday()
 
     marcas_por_persona = {}
     for m in MarcacionBiometrica.objects.filter(timestamp__date=fecha).order_by("timestamp"):
         marcas_por_persona.setdefault(m.id_biometrico, []).append(m)
 
     docentes_por_id = {d.id_biometrico: d for d in Docente.objects.all()}
+
+    # Promoción/Período de cada bloque que le toca a cada docente ESE día de
+    # la semana — para mostrar, junto a cada marca, a qué curso corresponde
+    # (igual que pediste: una sola columna con Promoción y Período juntos).
+    asignaciones_del_dia = (
+        Asignacion.objects.filter(
+            oferta_curso__bloques__dia_semana=dia_semana,
+            oferta_curso__periodo_academico__fecha_inicio__lte=fecha,
+            oferta_curso__periodo_academico__fecha_fin__gte=fecha,
+        )
+        .select_related("docente", "oferta_curso__periodo_academico__promocion")
+        .prefetch_related("oferta_curso__bloques__hora_pedagogica_inicio", "oferta_curso__bloques__hora_pedagogica_fin")
+        .distinct()
+    )
+    bloques_por_docente = {}
+    for a in asignaciones_del_dia:
+        periodo = a.oferta_curso.periodo_academico
+        texto = f"{periodo.promocion.nombre} — {periodo.nombre or f'{periodo.numero_periodo}° periodo'}"
+        for b in a.oferta_curso.bloques.all():
+            if b.dia_semana == dia_semana:
+                bloques_por_docente.setdefault(a.docente.id_biometrico, []).append(
+                    (b.hora_pedagogica_inicio.hora_inicio, texto)
+                )
+
+    def promocion_periodo_de(id_biometrico, hora_inicio_local):
+        """De todos los cursos que le tocan hoy a esta persona, elige el que
+        empieza más cerca de la hora en que realmente marcó — para que cada
+        sesión del día se asocie al curso correcto, no a cualquiera."""
+        opciones = bloques_por_docente.get(id_biometrico)
+        if not opciones:
+            return "—"
+        hora = hora_inicio_local.time()
+        return min(
+            opciones,
+            key=lambda o: abs(
+                (datetime.combine(fecha, hora) - datetime.combine(fecha, o[0])).total_seconds()
+            ),
+        )[1]
 
     filas = []
     for id_biometrico, marcas in marcas_por_persona.items():
@@ -1637,7 +1677,7 @@ def reporte_diario_marcaciones(request):
                     "sin_registrar": docente is None,
                     "hora_inicio": inicio,
                     "hora_fin": fin,
-                    "tiempo_largo": duracion,
+                    "promocion_periodo": promocion_periodo_de(id_biometrico, inicio) if docente else "—",
                     "tiempo_valid": duracion,
                     "fecha": fecha,
                 }
@@ -1649,20 +1689,11 @@ def reporte_diario_marcaciones(request):
     # su horario) y no tienen ni una sola marca — no se incluye a cualquier
     # activo sin marca, porque a la mayoría simplemente no le tocaba ese
     # día y no sería una falta real.
-    dia_semana = fecha.isoweekday()
-    docentes_con_clase_ids = (
-        Asignacion.objects.filter(
-            oferta_curso__bloques__dia_semana=dia_semana,
-            oferta_curso__periodo_academico__fecha_inicio__lte=fecha,
-            oferta_curso__periodo_academico__fecha_fin__gte=fecha,
-        )
-        .values_list("docente_id", flat=True)
-        .distinct()
-    )
-    faltos = Docente.objects.filter(pk__in=docentes_con_clase_ids).exclude(
+    faltos = Docente.objects.filter(id_biometrico__in=bloques_por_docente.keys()).exclude(
         id_biometrico__in=marcas_por_persona.keys()
     ).order_by("apellidos_nombres")
     for indice, d in enumerate(faltos):
+        textos = {texto for _, texto in bloques_por_docente.get(d.id_biometrico, [])}
         filas.append(
             {
                 "id_biometrico": d.id_biometrico,
@@ -1672,7 +1703,7 @@ def reporte_diario_marcaciones(request):
                 "primer_falto": indice == 0,
                 "hora_inicio": None,
                 "hora_fin": None,
-                "tiempo_largo": "FALTO",
+                "promocion_periodo": "; ".join(sorted(textos)),
                 "tiempo_valid": "FALTO",
                 "fecha": fecha,
             }

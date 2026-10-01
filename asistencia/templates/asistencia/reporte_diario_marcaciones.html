@@ -10,7 +10,7 @@
 <div class="pagina-centrada">
 <div class="no-imprimir">
 <h1>Reporte Diario de Marcaciones</h1>
-<p>Calco del reporte que exportaba el biométrico (AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal, TiempoLargo, TiempoValid, Fecha) — para archivar igual que antes.</p>
+<p>Calco del reporte que exportaba el biométrico (AC-No., Cédula, Nombre, TiempoInicio, TiempoFinal, Promoción/Período, TiempoValid, Fecha) — para archivar igual que antes.</p>
 
 <form method="get" class="filtros-horario">
     <label style="font-size:.85rem;color:#555;display:flex;align-items:center;gap:.3rem">
@@ -51,7 +51,7 @@
             <th>Nombre</th>
             <th style="width:5rem">TiempoInicio</th>
             <th style="width:5rem">TiempoFinal</th>
-            <th style="width:5rem">TiempoLargo</th>
+            <th style="width:11rem">Promoción / Período</th>
             <th style="width:5rem">TiempoValid</th>
             <th style="width:5.5rem">Fecha</th>
         </tr>
@@ -61,13 +61,13 @@
         {% if fila.primer_falto %}
         <tr><td colspan="8" style="background:#f4f4f4;font-weight:700;text-align:center">Tenían clase programada ese día y no marcaron</td></tr>
         {% endif %}
-        <tr {% if fila.sin_registrar %}class="sin-registrar"{% elif fila.tiempo_largo == "FALTO" %}class="fila-falto"{% endif %}>
+        <tr {% if fila.sin_registrar %}class="sin-registrar"{% elif fila.tiempo_valid == "FALTO" %}class="fila-falto"{% endif %}>
             <td class="centro">{{ fila.id_biometrico }}</td>
             <td class="centro">{{ fila.dni }}</td>
             <td>{{ fila.nombre }}</td>
             <td class="centro">{% if fila.hora_inicio %}{{ fila.hora_inicio|time:"H:i" }}{% else %}—{% endif %}</td>
-            <td class="centro">{% if fila.hora_fin %}{{ fila.hora_fin|time:"H:i" }}{% elif fila.tiempo_largo == "FALTO" %}—{% else %}<strong>NO REG.</strong>{% endif %}</td>
-            <td class="centro">{{ fila.tiempo_largo }}</td>
+            <td class="centro">{% if fila.hora_fin %}{{ fila.hora_fin|time:"H:i" }}{% elif fila.tiempo_valid == "FALTO" %}—{% else %}<strong>NO REG.</strong>{% endif %}</td>
+            <td>{{ fila.promocion_periodo }}</td>
             <td class="centro">{{ fila.tiempo_valid }}</td>
             <td class="centro">{{ fila.fecha|date:"d/m/Y" }}</td>
         </tr>
