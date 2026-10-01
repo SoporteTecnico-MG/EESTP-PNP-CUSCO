@@ -129,8 +129,7 @@
             <th class="no-imprimir">
                 <input type="checkbox" id="chk-todos" title="Seleccionar todas las filas corregibles">
             </th>
-            {% if not promocion %}<th>Promoción</th>{% endif %}
-            <th>Período</th>
+            {% if not promocion %}<th>Promoción / Período</th>{% else %}<th>Período</th>{% endif %}
             <th>
                 <a class="th-orden" href="?{{ base_qs }}&orden={{ next_orden.fecha }}">
                     Fecha / Hora {% if campo_orden == "fecha" %}{% if reverso %}▼{% else %}▲{% endif %}{% endif %}
@@ -166,8 +165,7 @@
         {% if f.es_feriado %}
         <tr>
             <td class="no-imprimir"></td>
-            {% if not promocion %}<td>{{ f.promocion_nombre }}</td>{% endif %}
-            <td>{{ f.periodo_nombre }}</td>
+            {% if not promocion %}<td>{{ f.promocion_nombre }} — {{ f.periodo_nombre }}</td>{% else %}<td>{{ f.periodo_nombre }}</td>{% endif %}
             <td>{{ f.fecha_display|date:"d/m/Y" }}</td>
             <td colspan="7" style="text-align:center;font-size:1.3rem;font-weight:700;color:#8a6d00;background:#fff6d8">
                 FERIADO — {{ f.descripcion }}
@@ -180,8 +178,7 @@
                 <input type="checkbox" name="seleccion" value="{{ f.registro.id }}" form="form-lote" class="chk-fila">
                 {% endif %}
             </td>
-            {% if not promocion %}<td>{{ f.promocion_nombre }}</td>{% endif %}
-            <td>{{ f.periodo_nombre }}</td>
+            {% if not promocion %}<td>{{ f.promocion_nombre }} — {{ f.periodo_nombre }}</td>{% else %}<td>{{ f.periodo_nombre }}</td>{% endif %}
             <td>
                 {{ f.registro.fecha|date:"d/m/Y" }}
                 {% if f.hora_inicio_display %}<br><span style="color:#888;font-size:.8rem">{{ f.hora_inicio_display|time:"H:i" }}{% if f.hora_fin_display %} – {{ f.hora_fin_display|time:"H:i" }}{% endif %}</span>{% endif %}
@@ -225,7 +222,7 @@
         </tr>
         {% endif %}
         {% empty %}
-        <tr><td colspan="{% if promocion %}10{% else %}11{% endif %}" style="text-align:center;color:#888">Sin asistencias resueltas todavía para este rango.</td></tr>
+        <tr><td colspan="10" style="text-align:center;color:#888">Sin asistencias resueltas todavía para este rango.</td></tr>
         {% endfor %}
     </tbody>
 </table>
