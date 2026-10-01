@@ -1648,9 +1648,16 @@ def reporte_diario_marcaciones(request):
         empieza más cerca de la hora en que realmente marcó — para que cada
         sesión del día se asocie al curso correcto, no a cualquiera."""
         opciones = bloques_por_docente.get(id_biometrico)
-        if not opciones:
-            return "—"
         hora = hora_inicio_local.time()
+        if not opciones:
+            # Nada programado a esa hora para esta persona — si cae en la
+            # ventana de recuperación nocturna (después del horario normal
+            # y hasta las 22:00), se avisa como tal en vez de dejar un
+            # guion sin explicación; es justo lo mismo que hace el motor de
+            # asistencia principal con estas marcas (sin Asignación).
+            if resolver._fin_horario_institucional() <= hora <= resolver.RECUPERACION_HASTA:
+                return "Recuperación nocturna"
+            return "—"
         return min(
             opciones,
             key=lambda o: abs(
