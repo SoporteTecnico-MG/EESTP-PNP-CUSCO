@@ -1257,7 +1257,7 @@ _COLOR_ESTADO = {
     AsistenciaResuelta.Estado.AMBIGUO: "cal-amarillo",
     AsistenciaResuelta.Estado.NO_PROGRAMADO: "cal-amarillo",
     AsistenciaResuelta.Estado.FALTA: "cal-rojo",
-    AsistenciaResuelta.Estado.RECUPERACION: "cal-verde",
+    AsistenciaResuelta.Estado.RECUPERACION: "cal-amarillo",
 }
 
 MESES_ES = [
@@ -1464,6 +1464,29 @@ def calendario_asistencia(request):
 
         grupos_curso.sort(key=lambda g: (g["hora_orden"], g["curso"]))
 
+        # Recuperaciones nocturnas SIN curso programado (asignacion=None):
+        # el grid de arriba no tiene dónde ponerlas (está organizado por
+        # curso/aula), así que se listan aparte — con hora, el comentario
+        # "Recuperación" y la fecha a la que corresponden.
+        docentes_del_grupo = set()
+        for _, _, _, asignaciones_g, _ in datos_por_grupo:
+            docentes_del_grupo.update(a.docente_id for a in asignaciones_g.values())
+        recuperaciones_sueltas = list(
+            AsistenciaResuelta.objects.filter(
+                estado=AsistenciaResuelta.Estado.RECUPERACION,
+                asignacion__isnull=True,
+                docente_id__in=docentes_del_grupo,
+                fecha__gte=fecha_desde,
+                fecha__lte=fecha_hasta,
+            )
+            .select_related("docente", "marcacion_entrada")
+            .order_by("fecha", "docente__apellidos_nombres")
+        )
+        for r in recuperaciones_sueltas:
+            r.hora_local = timezone.localtime(r.marcacion_entrada.timestamp) if r.marcacion_entrada else None
+    else:
+        recuperaciones_sueltas = []
+
     return render(
         request,
         "asistencia/calendario_asistencia.html",
@@ -1487,6 +1510,7 @@ def calendario_asistencia(request):
             "meses_header": meses_header,
             "columnas_fecha": columnas_fecha,
             "grupos_curso": grupos_curso,
+            "recuperaciones_sueltas": recuperaciones_sueltas,
         },
     )
 
