@@ -205,6 +205,47 @@ def _actualizar_estado_provisional(ar, inicio_dt, fin_dt):
     ar.save()
 
 
+def _procesar_marcas_extra_como_recuperacion(docente, fecha, extras):
+    """Marcas que sobran después del primer par entrada/salida, cuando el
+    docente solo tenía UN curso programado ese día — se guardan como una
+    Recuperación aparte (asignacion=None), igual que si ese día no le
+    hubiera tocado nada, para no inflar las horas efectivas de la clase
+    con tiempo que no le corresponde a ella."""
+    if not extras:
+        return
+    entrada_extra = extras[0]
+    salida_extra = extras[1] if len(extras) > 1 else None
+    hora_marca = timezone.localtime(entrada_extra.timestamp).time()
+    es_recuperacion = _fin_horario_institucional() <= hora_marca <= RECUPERACION_HASTA
+
+    ar = AsistenciaResuelta.objects.filter(asignacion__isnull=True, docente=docente, fecha=fecha).first()
+    if ar is None:
+        AsistenciaResuelta.objects.create(
+            docente=docente,
+            asignacion=None,
+            fecha=fecha,
+            estado=AsistenciaResuelta.Estado.RECUPERACION if es_recuperacion else AsistenciaResuelta.Estado.NO_PROGRAMADO,
+            requiere_revision=not es_recuperacion,
+            marcacion_entrada=entrada_extra,
+            marcacion_salida=salida_extra,
+        )
+        return
+
+    cambios = []
+    if es_recuperacion and ar.estado != AsistenciaResuelta.Estado.RECUPERACION:
+        ar.estado = AsistenciaResuelta.Estado.RECUPERACION
+        ar.requiere_revision = False
+        cambios += ["estado", "requiere_revision"]
+    if ar.marcacion_entrada_id is None:
+        ar.marcacion_entrada = entrada_extra
+        cambios.append("marcacion_entrada")
+    if ar.marcacion_salida_id is None and salida_extra is not None:
+        ar.marcacion_salida = salida_extra
+        cambios.append("marcacion_salida")
+    if cambios:
+        ar.save(update_fields=cambios)
+
+
 def procesar_marcaciones_pendientes():
     """Asocia marcaciones nuevas a las Asignaciones del docente ese día.
 
@@ -339,12 +380,20 @@ def procesar_marcaciones_pendientes():
             if not dentro_del_rango:
                 continue
 
-            ar, _ = AsistenciaResuelta.objects.get_or_create(
-                docente=docente,
-                asignacion=asignacion,
-                fecha=fecha,
-                defaults={"estado": AsistenciaResuelta.Estado.FALTA},
-            )
+            # Por (asignacion, fecha) — no por docente — mismo motivo que en
+            # cerrar_dia(): si el docente de la Asignación cambió, esto debe
+            # actualizar el registro existente, no crear uno aparte (y con
+            # el unique_together actual, un get_or_create con el docente
+            # viejo en el filtro fallaría con IntegrityError al chocar con
+            # la fila que ya existe para esa Asignación+fecha).
+            ar = AsistenciaResuelta.objects.filter(asignacion=asignacion, fecha=fecha).first()
+            if ar is None:
+                ar = AsistenciaResuelta.objects.create(
+                    docente=docente, asignacion=asignacion, fecha=fecha, estado=AsistenciaResuelta.Estado.FALTA
+                )
+            elif ar.docente_id != docente.id:
+                ar.docente = docente
+                ar.save(update_fields=["docente"])
             cambios = []
 
             if len(todas_las_marcas) == 1:
@@ -370,6 +419,23 @@ def procesar_marcaciones_pendientes():
                         if ar.marcacion_salida_id != primera.id:
                             ar.marcacion_salida = primera
                             cambios.append("marcacion_salida")
+            elif len(pares) == 1 and len(todas_las_marcas) > 2:
+                # Un solo curso programado hoy, pero marcó más de un par
+                # entrada/salida: el primer par es la clase, lo que sobra
+                # después es tiempo aparte (recuperación) — si no, se le
+                # suman esas horas a la clase sin que le correspondan (ver
+                # caso real: RODRIGUEZ PATIÑO, clase hasta 18:10 pero quedó
+                # registrada hasta 19:54 porque esa era su ÚLTIMA marca del
+                # día, no la salida real de esa clase).
+                entrada_clase, salida_clase = todas_las_marcas[0], todas_las_marcas[1]
+                if ar.marcacion_entrada_id is None or ar.marcacion_entrada.origen_dispositivo != "MANUAL":
+                    if ar.marcacion_entrada_id != entrada_clase.id:
+                        ar.marcacion_entrada = entrada_clase
+                        cambios.append("marcacion_entrada")
+                if ar.marcacion_salida_id is None or ar.marcacion_salida.origen_dispositivo != "MANUAL":
+                    if ar.marcacion_salida_id != salida_clase.id:
+                        ar.marcacion_salida = salida_clase
+                        cambios.append("marcacion_salida")
             else:
                 if ar.marcacion_entrada_id is None or ar.marcacion_entrada.origen_dispositivo != "MANUAL":
                     if ar.marcacion_entrada_id != primera.id:
@@ -384,6 +450,9 @@ def procesar_marcaciones_pendientes():
                 ar.save(update_fields=cambios)
             _actualizar_estado_provisional(ar, inicio_dt, fin_dt)
             resultados["vinculada"] += 1
+
+        if len(pares) == 1 and len(todas_las_marcas) > 2:
+            _procesar_marcas_extra_como_recuperacion(docente, fecha, todas_las_marcas[2:])
 
     return dict(resultados)
 
