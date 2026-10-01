@@ -75,11 +75,18 @@
                 <a href="{% url 'controldocentes:reporte_diario_marcaciones' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Reporte Diario de Marcaciones</a>
             </div>
         </div>
-        <div class="ed-card" style="background:#e9ecef;color:#495057;">
-            <span style="position:absolute;top:.75rem;right:.75rem;background:#adb5bd;color:#fff;font-size:.68rem;padding:.15rem .5rem;border-radius:1rem;text-transform:uppercase;letter-spacing:.03em">Próximamente</span>
+        <div class="ed-card" style="background:linear-gradient(135deg, #0d3b2e, #16543f); color:#fff;">
+            <span style="position:absolute;top:.75rem;right:.75rem;background:#c9a227;color:#0d3b2e;font-size:.68rem;padding:.15rem .5rem;border-radius:1rem;text-transform:uppercase;letter-spacing:.03em;font-weight:700">En desarrollo</span>
             <div style="font-size:1.15rem;font-weight:700;margin-bottom:.3rem">🎓 Aula Virtual</div>
-            <div style="font-size:.85rem">
-                Roles (admin, docentes, estudiantes), materiales de clase y asistencia por inicio de sesión. Todavía no está construida — se planificará como una fase aparte.
+            <div style="opacity:.85;font-size:.85rem;margin-bottom:1rem">
+                Acceso por Docente/Estudiante, cursos, horario del día, materiales y tareas con calificación.
+                Falta: calendario del estudiante, libro de notas, avisos por curso.
+            </div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+                <a href="{% url 'asistencia:aula_virtual' %}" style="background:#c9a227;color:#0d3b2e;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:700">Entrar al Aula Virtual</a>
+                <a href="{% url 'controldocentes:asistencia_estudiante_changelist' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Estudiantes</a>
+                <a href="{% url 'controldocentes:asistencia_tarea_changelist' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Tareas</a>
+                <a href="{% url 'controldocentes:asistencia_materialclase_changelist' %}" style="background:#fff;color:#16543f;padding:.4rem .9rem;border-radius:.3rem;text-decoration:none;font-weight:600">Materiales</a>
             </div>
         </div>
     </div>
